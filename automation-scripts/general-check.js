@@ -5,8 +5,8 @@
  * Fallback script for manual runs or general health checks
  */
 
-import { espnApi } from '../dist/services/espnApi.js';
-import { costMonitor } from '../dist/services/costMonitor.js';
+import { espnApi } from '../services/espnApi.js';
+import { costMonitor } from '../services/costMonitor.js';
 import fs from 'fs';
 
 async function generalCheck() {

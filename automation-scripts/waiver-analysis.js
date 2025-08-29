@@ -5,9 +5,8 @@
  * Runs on Tuesday after waivers process to analyze new opportunities
  */
 
-import { automationService } from '../dist/services/automationService.js';
-import { notificationService } from '../dist/services/notificationService.js';
-import { getNotificationConfigFromEnv } from '../dist/services/notificationService.js';
+import { automationService } from '../services/automationService.js';
+import { notificationService, getNotificationConfigFromEnv } from '../services/notificationService.js';
 import fs from 'fs';
 
 async function analyzeWaiverWire() {
