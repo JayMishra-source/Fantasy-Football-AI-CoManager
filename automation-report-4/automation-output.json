@@ -1,0 +1,7 @@
+{
+  "timestamp": "2025-08-29T21:14:50.971Z",
+  "task": "general_check",
+  "status": "error",
+  "checks": {},
+  "error": "espnApi.getLeague is not a function"
+}
