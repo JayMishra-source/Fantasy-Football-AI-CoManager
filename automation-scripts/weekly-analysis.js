@@ -5,12 +5,17 @@
  * Runs on Monday after games to analyze performance and plan for next week
  */
 
-import { automationService } from '../services/automationService.js';
+import { enhancedAutomationService } from '../services/enhancedAutomationService.js';
 import { notificationService, getNotificationConfigFromEnv } from '../services/notificationService.js';
 import fs from 'fs';
 
 async function weeklyAnalysis() {
   console.log('📈 Starting weekly performance analysis...');
+  
+  // Initialize FantasyPros if available (optional)
+  if (process.env.FANTASYPROS_SESSION_ID) {
+    await enhancedAutomationService.initializeFantasyPros(process.env.FANTASYPROS_SESSION_ID);
+  }
   
   const results = {
     timestamp: new Date().toISOString(),
@@ -28,7 +33,7 @@ async function weeklyAnalysis() {
     if (process.env.LEAGUE_1_ID && process.env.LEAGUE_1_TEAM_ID) {
       console.log(`📊 Analyzing League 1 performance...`);
       
-      const report = await automationService.generateWeeklyReport(
+      const report = await enhancedAutomationService.generateEnhancedWeeklyReport(
         process.env.LEAGUE_1_ID,
         process.env.LEAGUE_1_TEAM_ID,
         currentWeek
@@ -53,7 +58,7 @@ async function weeklyAnalysis() {
     if (process.env.LEAGUE_2_ID && process.env.LEAGUE_2_TEAM_ID) {
       console.log(`📊 Analyzing League 2 performance...`);
       
-      const report = await automationService.generateWeeklyReport(
+      const report = await enhancedAutomationService.generateEnhancedWeeklyReport(
         process.env.LEAGUE_2_ID,
         process.env.LEAGUE_2_TEAM_ID,
         currentWeek

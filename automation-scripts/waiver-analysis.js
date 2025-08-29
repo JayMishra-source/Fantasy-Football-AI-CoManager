@@ -5,12 +5,17 @@
  * Runs on Tuesday after waivers process to analyze new opportunities
  */
 
-import { automationService } from '../services/automationService.js';
+import { enhancedAutomationService } from '../services/enhancedAutomationService.js';
 import { notificationService, getNotificationConfigFromEnv } from '../services/notificationService.js';
 import fs from 'fs';
 
 async function analyzeWaiverWire() {
   console.log('🎯 Starting waiver wire analysis...');
+  
+  // Initialize FantasyPros if available (optional)
+  if (process.env.FANTASYPROS_SESSION_ID) {
+    await enhancedAutomationService.initializeFantasyPros(process.env.FANTASYPROS_SESSION_ID);
+  }
   
   const results = {
     timestamp: new Date().toISOString(),
@@ -28,7 +33,7 @@ async function analyzeWaiverWire() {
     if (process.env.LEAGUE_1_ID && process.env.LEAGUE_1_TEAM_ID) {
       console.log(`📊 Analyzing waiver wire for League 1...`);
       
-      const report = await automationService.generateWeeklyReport(
+      const report = await enhancedAutomationService.generateEnhancedWeeklyReport(
         process.env.LEAGUE_1_ID,
         process.env.LEAGUE_1_TEAM_ID,
         currentWeek
@@ -62,7 +67,7 @@ async function analyzeWaiverWire() {
     if (process.env.LEAGUE_2_ID && process.env.LEAGUE_2_TEAM_ID) {
       console.log(`📊 Analyzing waiver wire for League 2...`);
       
-      const report = await automationService.generateWeeklyReport(
+      const report = await enhancedAutomationService.generateEnhancedWeeklyReport(
         process.env.LEAGUE_2_ID,
         process.env.LEAGUE_2_TEAM_ID,
         currentWeek

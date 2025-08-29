@@ -5,12 +5,17 @@
  * Runs on Thursday (pre-TNF) and Sunday (pre-games) to optimize lineups
  */
 
-import { automationService } from '../services/automationService.js';
+import { enhancedAutomationService } from '../services/enhancedAutomationService.js';
 import { notificationService, getNotificationConfigFromEnv } from '../services/notificationService.js';
 import fs from 'fs';
 
 async function optimizeLineups() {
   console.log('🏈 Starting lineup optimization...');
+  
+  // Initialize FantasyPros if available (optional)
+  if (process.env.FANTASYPROS_SESSION_ID) {
+    await enhancedAutomationService.initializeFantasyPros(process.env.FANTASYPROS_SESSION_ID);
+  }
   
   const results = {
     timestamp: new Date().toISOString(),
@@ -29,7 +34,7 @@ async function optimizeLineups() {
     if (process.env.LEAGUE_1_ID && process.env.LEAGUE_1_TEAM_ID) {
       console.log(`📊 Analyzing League 1 (${process.env.LEAGUE_1_ID})...`);
       
-      const report = await automationService.generateWeeklyReport(
+      const report = await enhancedAutomationService.generateEnhancedWeeklyReport(
         process.env.LEAGUE_1_ID,
         process.env.LEAGUE_1_TEAM_ID,
         currentWeek
@@ -62,7 +67,7 @@ async function optimizeLineups() {
     if (process.env.LEAGUE_2_ID && process.env.LEAGUE_2_TEAM_ID) {
       console.log(`📊 Analyzing League 2 (${process.env.LEAGUE_2_ID})...`);
       
-      const report = await automationService.generateWeeklyReport(
+      const report = await enhancedAutomationService.generateEnhancedWeeklyReport(
         process.env.LEAGUE_2_ID,
         process.env.LEAGUE_2_TEAM_ID,
         currentWeek
@@ -91,6 +96,15 @@ async function optimizeLineups() {
     
     results.status = 'success';
     results.summary = `Processed ${results.leagues.length} leagues. Total lineup changes: ${results.leagues.reduce((sum, l) => sum + l.report.lineupChanges.length, 0)}`;
+    
+    // Add FantasyPros status to summary
+    const fpStatus = enhancedAutomationService.getFantasyProsStatus();
+    if (fpStatus.enabled) {
+      results.summary += ` | FantasyPros: ENABLED (${fpStatus.playerCount} players)`;
+      console.log(`📊 Using expert consensus from ${fpStatus.playerCount} player rankings`);
+    } else {
+      results.summary += ' | FantasyPros: DISABLED';
+    }
     
     console.log('✅ Lineup optimization completed successfully');
     
