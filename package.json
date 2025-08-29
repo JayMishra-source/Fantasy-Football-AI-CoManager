@@ -5,10 +5,14 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r automation-scripts dist/",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "test:automation": "npm run build && node dist/automation-scripts/general-check.js",
+    "manual:lineup": "npm run build && node dist/automation-scripts/lineup-optimizer.js",
+    "manual:waiver": "npm run build && node dist/automation-scripts/waiver-analysis.js",
+    "manual:analysis": "npm run build && node dist/automation-scripts/weekly-analysis.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.60.0",
