@@ -358,6 +358,17 @@ jobs:
           MODE="${{ needs.preflight-intelligence.outputs.intelligence_mode }}"
           WEEK="${{ needs.preflight-intelligence.outputs.current_week }}"
           
+          # Fallback if week is empty
+          if [[ -z "$WEEK" ]]; then
+            WEEK=$(node -e "
+              const now = new Date();
+              const seasonStart = new Date(now.getFullYear(), 8, 1);
+              const weeksSinceStart = Math.floor((now.getTime() - seasonStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+              console.log(Math.max(1, Math.min(18, weeksSinceStart + 1)));
+            ")
+            echo "⚠️ Using fallback week calculation: $WEEK"
+          fi
+          
           if [[ "${{ needs.advanced-intelligence.result }}" == "success" ]]; then
             STATUS="✅ SUCCESS"
             COLOR="3066993"  # Green
