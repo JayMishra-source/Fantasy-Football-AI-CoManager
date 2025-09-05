@@ -371,8 +371,31 @@ jobs:
           
           # Extract key insights if available
           INSIGHTS=""
-          if [[ -f "results/phase4_results.json" ]]; then
-            INSIGHTS=$(cat results/phase4_results.json | jq -r '.key_insights[0:3][]' 2>/dev/null | head -3 || echo "Analysis complete")
+          URGENT_ACTIONS=""
+          NEXT_ACTIONS=""
+          GRADE=""
+          
+          if [[ -f "fantasy-poc/automation/phase4_results.json" ]]; then
+            INSIGHTS=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.key_insights[0:3][]?' 2>/dev/null | head -3 || echo "Analysis complete")
+            URGENT_ACTIONS=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
+            NEXT_ACTIONS=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
+            GRADE=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.performance_grade' 2>/dev/null || echo "N/A")
+          fi
+          
+          # Format insights for better readability
+          FORMATTED_INSIGHTS=""
+          if [[ -n "$INSIGHTS" ]]; then
+            FORMATTED_INSIGHTS="📊 **Key Insights:**\\n$(echo "$INSIGHTS" | sed 's/^/• /')\\n\\n"
+          fi
+          
+          FORMATTED_URGENT=""
+          if [[ -n "$URGENT_ACTIONS" ]]; then
+            FORMATTED_URGENT="🚨 **Urgent Actions:**\\n$(echo "$URGENT_ACTIONS" | sed 's/^/• /')\\n\\n"
+          fi
+          
+          FORMATTED_NEXT=""
+          if [[ -n "$NEXT_ACTIONS" ]]; then
+            FORMATTED_NEXT="📋 **Next Steps:**\\n$(echo "$NEXT_ACTIONS" | sed 's/^/• /')\\n\\n"
           fi
           
           # Send Discord notification
@@ -382,14 +405,14 @@ jobs:
               -d "{
                 \"embeds\": [{
                   \"title\": \"🧠 Phase 4 Advanced Intelligence - $STATUS\",
-                  \"description\": \"**Mode**: $MODE\\n**Week**: $WEEK\\n**Time**: $(date)\\n\\n**Key Insights**:\\n$INSIGHTS\",
+                  \"description\": \"**Mode**: $MODE | **Week**: $WEEK | **Grade**: $GRADE\\n\\n${FORMATTED_INSIGHTS}${FORMATTED_URGENT}${FORMATTED_NEXT}\",
                   \"color\": $COLOR,
                   \"fields\": [
                     {\"name\": \"🎯 Intelligence Mode\", \"value\": \"$MODE\", \"inline\": true},
                     {\"name\": \"📅 NFL Week\", \"value\": \"$WEEK\", \"inline\": true},
-                    {\"name\": \"📊 Status\", \"value\": \"$STATUS\", \"inline\": true}
+                    {\"name\": \"🏆 Performance Grade\", \"value\": \"$GRADE\", \"inline\": true}
                   ],
-                  \"footer\": {\"text\": \"Fantasy AI Phase 4 Advanced Intelligence\"},
+                  \"footer\": {\"text\": \"Fantasy AI Phase 4 Advanced Intelligence • $(date +'%b %d, %Y at %I:%M %p UTC')\"},
                   \"timestamp\": \"$(date -Iseconds)\"
                 }]
               }"
