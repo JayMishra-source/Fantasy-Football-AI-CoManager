@@ -1,0 +1,32 @@
+{
+  "name": "espn-fantasy-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for ESPN Fantasy Football integration with Claude",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "prepare": "npm run build",
+    "test": "npm run build && node test-enhanced-tools.js",
+    "test:integration": "npm run build && node dist/test/integration-test.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.60.0",
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "@types/cheerio": "^0.22.35",
+    "axios": "^1.7.9",
+    "cheerio": "^1.1.2",
+    "dotenv": "^16.4.7",
+    "node-cache": "^5.1.2",
+    "openai": "^5.16.0",
+    "puppeteer": "^24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

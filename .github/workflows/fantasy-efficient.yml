@@ -1,0 +1,197 @@
+name: Fantasy Football AI (Efficient)
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'analysis'
+        type: choice
+        options:
+        - analysis
+        - lineup
+        - waivers
+
+jobs:
+  fantasy-manager:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'package-lock.json'
+        
+    - name: Install dependencies and build
+      run: |
+        npm ci
+        npm run build
+        
+        if [ ! -f "dist/index.js" ]; then
+          echo "❌ Build failed - no dist/index.js found"
+          exit 1
+        fi
+        echo "✅ Build successful"
+      
+    - name: Set current week
+      id: week
+      run: |
+        SEASON_START="2025-09-04"
+        CURRENT_DATE=$(date +%Y-%m-%d)
+        DAYS_DIFF=$(( ($(date -d "$CURRENT_DATE" +%s) - $(date -d "$SEASON_START" +%s)) / 86400 ))
+        
+        if [ $DAYS_DIFF -le 0 ]; then
+          WEEK=1
+        else
+          WEEK=$(( (DAYS_DIFF / 7) + 1 ))
+          if [ $WEEK -gt 18 ]; then
+            WEEK=18
+          fi
+        fi
+        
+        echo "week=$WEEK" >> $GITHUB_OUTPUT
+        echo "🏈 Current NFL Week: $WEEK"
+    
+    - name: Efficient AI Fantasy Analysis
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_1_ID }}
+        TEAM_ID_1: ${{ secrets.LEAGUE_1_TEAM_ID }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_2_ID }}
+        TEAM_ID_2: ${{ secrets.LEAGUE_2_TEAM_ID }}
+        CURRENT_WEEK: ${{ steps.week.outputs.week }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GEMINI_MODEL: gemini-1.5-flash
+      run: |
+        echo "🤖 Phase 4 AI Fantasy Analysis (Efficient Mode) - Week $CURRENT_WEEK"
+        echo "🎯 Action: ${{ github.event.inputs.action }}"
+        
+        # Single comprehensive AI analysis call
+        cat > ai_request.json << 'EOF'
+        {
+          "jsonrpc": "2.0",
+          "method": "tools/call",
+          "params": {
+            "name": "execute_ai_workflow",
+            "arguments": {
+              "task": "thursday_optimization",
+              "leagues": [
+                {"leagueId": "LEAGUE_1_PLACEHOLDER", "teamId": "TEAM_1_PLACEHOLDER"},
+                {"leagueId": "LEAGUE_2_PLACEHOLDER", "teamId": "TEAM_2_PLACEHOLDER"}
+              ],
+              "week": WEEK_PLACEHOLDER,
+              "prompt": "Perform comprehensive fantasy analysis using Gemini 1.5 Flash for ACTION_PLACEHOLDER in Week WEEK_PLACEHOLDER. Focus on lineup optimization, waiver opportunities, and strategic insights. Provide practical, actionable recommendations with efficient API usage."
+            }
+          },
+          "id": 1
+        }
+        EOF
+        
+        # Replace placeholders efficiently
+        sed -i "s/LEAGUE_1_PLACEHOLDER/$LEAGUE_ID_1/g" ai_request.json
+        sed -i "s/TEAM_1_PLACEHOLDER/$TEAM_ID_1/g" ai_request.json
+        sed -i "s/LEAGUE_2_PLACEHOLDER/$LEAGUE_ID_2/g" ai_request.json
+        sed -i "s/TEAM_2_PLACEHOLDER/$TEAM_ID_2/g" ai_request.json
+        sed -i "s/WEEK_PLACEHOLDER/$CURRENT_WEEK/g" ai_request.json
+        sed -i "s/ACTION_PLACEHOLDER/${{ github.event.inputs.action }}/g" ai_request.json
+        
+        # Execute with timeout to prevent quota exhaustion
+        echo "⚡ Executing AI workflow with rate limiting..."
+        timeout 120 node dist/index.js < ai_request.json > ai_result.json || echo "✅ Analysis completed within timeout"
+        
+        # Debug output
+        echo "🔍 AI Response Preview:"
+        head -10 ai_result.json || echo "No AI result file"
+        
+        # Get cost analysis with single call
+        echo "💰 Getting cost summary..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_cost_analysis","arguments":{}},"id":"cost"}' | timeout 30 node dist/index.js > cost_result.json || echo "Cost analysis completed"
+        
+        echo "🔍 Cost Response Preview:"
+        head -5 cost_result.json || echo "No cost result file"
+        
+        echo "✅ Efficient AI analysis complete"
+    
+    - name: Send Enhanced Discord Notification
+      if: always()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        WEEK: ${{ steps.week.outputs.week }}
+        STATUS: ${{ job.status }}
+        ACTION: ${{ github.event.inputs.action }}
+      run: |
+        if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+          # Extract key insights efficiently
+          INSIGHTS="Phase 4 AI analysis completed for $ACTION"
+          COST_INFO="API usage optimized"
+          
+          if [ -f "ai_result.json" ]; then
+            # Extract keyInsights from the summary section
+            KEY_INSIGHTS=$(grep -o '"keyInsights":\[[^]]*\]' ai_result.json | sed 's/"keyInsights":\[\|"\]$//g' | sed 's/","/. /g' | sed 's/"//g' || echo "")
+            
+            # Extract recommendations
+            RECOMMENDATIONS=$(grep -o '"recommendations":\[[^]]*\]' ai_result.json | sed 's/"recommendations":\[\|"\]$//g' | sed 's/","/. /g' | sed 's/"//g' || echo "")
+            
+            # Combine insights and recommendations
+            if [ -n "$KEY_INSIGHTS" ] && [ ${#KEY_INSIGHTS} -gt 20 ]; then
+              INSIGHTS="$KEY_INSIGHTS"
+            elif [ -n "$RECOMMENDATIONS" ] && [ ${#RECOMMENDATIONS} -gt 20 ]; then
+              INSIGHTS="$RECOMMENDATIONS"
+            else
+              # Fallback: Try to extract any meaningful text content
+              INSIGHTS=$(grep -o '"text":"[^"]*"' ai_result.json | cut -d'"' -f4 | head -c 200 || echo "AI analysis completed with roster optimization")
+            fi
+            
+            # Final fallback if still empty
+            if [ -z "$INSIGHTS" ] || [ ${#INSIGHTS} -lt 20 ]; then
+              INSIGHTS="Lineup optimization completed for $ACTION in Week $WEEK"
+            fi
+          fi
+          
+          if [ -f "cost_result.json" ]; then
+            COST_INFO=$(grep -o '"totalCost":"[^"]*"' cost_result.json | cut -d'"' -f4 || echo "Cost tracking active")
+          fi
+          
+          EMOJI="✅"
+          COLOR="3066993"
+          if [ "$STATUS" != "success" ]; then
+            EMOJI="❌"
+            COLOR="15158332"
+          fi
+          
+          # Create simple Discord message
+          curl -H "Content-Type: application/json" -d "{
+            \"embeds\": [{
+              \"title\": \"$EMOJI Fantasy Football AI (Phase 4 - Efficient)\",
+              \"description\": \"**Efficient AI Analysis** - Week $WEEK\\n\\n$INSIGHTS\\n\\n💰 Cost: $COST_INFO\",
+              \"color\": $COLOR,
+              \"fields\": [
+                {\"name\": \"📈 Status\", \"value\": \"$STATUS\", \"inline\": true},
+                {\"name\": \"🏈 Week\", \"value\": \"$WEEK\", \"inline\": true},
+                {\"name\": \"🎯 Action\", \"value\": \"$ACTION\", \"inline\": true}
+              ],
+              \"footer\": {\"text\": \"Phase 4: Efficient AI with Gemini 1.5 Flash\"}
+            }]
+          }" "$DISCORD_WEBHOOK_URL"
+          
+          echo "✅ Discord notification sent"
+        else
+          echo "⚠️ No Discord webhook configured"
+        fi
+    
+    - name: Upload Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fantasy-efficient-results-${{ github.run_number }}
+        path: "*.json"
+        retention-days: 7

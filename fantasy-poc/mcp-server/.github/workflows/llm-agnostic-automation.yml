@@ -1,0 +1,450 @@
+name: LLM-Agnostic Fantasy Automation
+
+on:
+  schedule:
+    # Thursday 6PM ET - Lineup optimization
+    - cron: '0 23 * * 4'
+    # Sunday 11AM ET - Final check
+    - cron: '0 16 * * 0'
+    # Monday 6PM ET - Waiver analysis
+    - cron: '0 23 * * 1'
+  
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'lineup'
+        type: choice
+        options:
+        - lineup
+        - waivers
+        - analysis
+        - test-llm
+      llm_provider:
+        description: 'Override LLM provider (optional)'
+        required: false
+        type: choice
+        options:
+        - ''
+        - claude
+        - openai
+        - perplexity
+        - gemini
+      llm_model:
+        description: 'Override LLM model (optional)'
+        required: false
+        type: string
+
+jobs:
+  fantasy-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'fantasy-poc/mcp-server/package-lock.json'
+        
+    - name: Install dependencies
+      working-directory: fantasy-poc/mcp-server
+      run: |
+        npm ci
+        # Install additional LLM provider dependencies
+        npm install @anthropic-ai/sdk openai @google/generative-ai
+      
+    - name: Build MCP server
+      working-directory: fantasy-poc/mcp-server
+      run: npm run build
+      
+    - name: Detect Available LLM Provider
+      id: llm-detection
+      working-directory: fantasy-poc/mcp-server
+      env:
+        # Claude
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        CLAUDE_MODEL: ${{ secrets.CLAUDE_MODEL }}
+        # OpenAI  
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+        # Perplexity
+        PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+        PERPLEXITY_MODEL: ${{ secrets.PERPLEXITY_MODEL }}
+        # Gemini
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GEMINI_MODEL: ${{ secrets.GEMINI_MODEL }}
+        # Manual override
+        MANUAL_PROVIDER: ${{ github.event.inputs.llm_provider }}
+        MANUAL_MODEL: ${{ github.event.inputs.llm_model }}
+      run: |
+        # Create LLM detection script
+        cat > detect-llm.js << 'EOF'
+        import { llmConfig } from './dist/config/llm-config.js';
+        
+        async function detectLLM() {
+          console.log('🔍 Detecting available LLM providers...');
+          
+          // Manual override
+          if (process.env.MANUAL_PROVIDER) {
+            console.log(`Using manual override: ${process.env.MANUAL_PROVIDER}`);
+            const config = {
+              provider: process.env.MANUAL_PROVIDER,
+              model: process.env.MANUAL_MODEL || getDefaultModel(process.env.MANUAL_PROVIDER),
+              api_key: getApiKey(process.env.MANUAL_PROVIDER)
+            };
+            
+            if (config.api_key) {
+              console.log(`✅ Manual provider configured: ${config.provider} (${config.model})`);
+              console.log(`::set-output name=provider::${config.provider}`);
+              console.log(`::set-output name=model::${config.model}`);
+              console.log(`::set-output name=api_key::${config.api_key}`);
+              return;
+            }
+          }
+          
+          // Auto-detect from environment
+          const config = llmConfig.loadConfig();
+          if (config) {
+            console.log(`✅ Auto-detected: ${config.provider} (${config.model})`);
+            console.log(`::set-output name=provider::${config.provider}`);
+            console.log(`::set-output name=model::${config.model}`);
+            console.log(`::set-output name=api_key::${config.api_key}`);
+            
+            // Show pricing info
+            const providers = llmConfig.getAvailableProviders();
+            const providerInfo = providers.find(p => p.provider === config.provider);
+            if (providerInfo) {
+              console.log(`💰 Pricing: ${providerInfo.pricing_note}`);
+            }
+          } else {
+            console.log('❌ No LLM provider configured');
+            console.log('Available options:');
+            llmConfig.getAvailableProviders().forEach(p => {
+              console.log(`  - ${p.name}: ${p.description}`);
+            });
+            process.exit(1);
+          }
+        }
+        
+        function getDefaultModel(provider) {
+          const defaults = {
+            'claude': 'claude-3-5-sonnet-20241022',
+            'openai': 'gpt-4o-mini',
+            'perplexity': 'llama-3.1-sonar-large-128k-online',
+            'gemini': 'gemini-1.5-flash'
+          };
+          return defaults[provider] || '';
+        }
+        
+        function getApiKey(provider) {
+          const keys = {
+            'claude': process.env.CLAUDE_API_KEY,
+            'openai': process.env.OPENAI_API_KEY,
+            'perplexity': process.env.PERPLEXITY_API_KEY,
+            'gemini': process.env.GEMINI_API_KEY
+          };
+          return keys[provider] || '';
+        }
+        
+        detectLLM().catch(console.error);
+        EOF
+        
+        node detect-llm.js
+    
+    - name: Set current week
+      id: week
+      run: |
+        SEASON_START="2025-09-04"
+        CURRENT_DATE=$(date +%Y-%m-%d)
+        DAYS_DIFF=$(( ($(date -d "$CURRENT_DATE" +%s) - $(date -d "$SEASON_START" +%s)) / 86400 ))
+        
+        if [ $DAYS_DIFF -le 0 ]; then
+          WEEK=1
+        else
+          WEEK=$(( (DAYS_DIFF / 7) + 1 ))
+          if [ $WEEK -gt 18 ]; then
+            WEEK=18
+          fi
+        fi
+        
+        echo "week=$WEEK" >> $GITHUB_OUTPUT
+        echo "📅 Current NFL Week: $WEEK"
+    
+    - name: Fantasy Analysis with LLM
+      working-directory: fantasy-poc/mcp-server
+      env:
+        # ESPN credentials
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_ID_1 }}
+        TEAM_ID_1: ${{ secrets.TEAM_ID_1 }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_ID_2 }}
+        TEAM_ID_2: ${{ secrets.TEAM_ID_2 }}
+        # Cost monitoring
+        COST_DAILY_LIMIT: ${{ secrets.COST_DAILY_LIMIT || '2.00' }}
+        COST_WEEKLY_LIMIT: ${{ secrets.COST_WEEKLY_LIMIT || '10.00' }}
+        COST_MONTHLY_LIMIT: ${{ secrets.COST_MONTHLY_LIMIT || '35.00' }}
+        COST_PER_ANALYSIS_LIMIT: ${{ secrets.COST_PER_ANALYSIS_LIMIT || '1.00' }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        # LLM Configuration
+        LLM_PROVIDER: ${{ steps.llm-detection.outputs.provider }}
+        LLM_MODEL: ${{ steps.llm-detection.outputs.model }}
+        LLM_API_KEY: ${{ steps.llm-detection.outputs.api_key }}
+        # Context
+        CURRENT_WEEK: ${{ steps.week.outputs.week }}
+        ACTION_TYPE: ${{ github.event.inputs.action || 'lineup' }}
+      run: |
+        # Determine action context
+        DAY_OF_WEEK=$(date +%u)  # 1=Monday, 4=Thursday, 7=Sunday
+        if [ "$DAY_OF_WEEK" -eq 4 ]; then
+          ACTION_CONTEXT="Thursday Evening Lineup Review"
+          PRIORITY="medium"
+          ACTION_TYPE="lineup"
+        elif [ "$DAY_OF_WEEK" -eq 7 ]; then
+          ACTION_CONTEXT="Sunday Morning Final Check"
+          PRIORITY="high"
+          ACTION_TYPE="lineup"
+        elif [ "$DAY_OF_WEEK" -eq 1 ]; then
+          ACTION_CONTEXT="Monday Evening Waiver Analysis"
+          PRIORITY="low"
+          ACTION_TYPE="waivers"
+        else
+          ACTION_CONTEXT="General Fantasy Analysis"
+          PRIORITY="medium"
+          ACTION_TYPE="${ACTION_TYPE:-analysis}"
+        fi
+        
+        echo "🤖 Starting $ACTION_CONTEXT with $LLM_PROVIDER ($LLM_MODEL)"
+        
+        # Create LLM analysis script
+        cat > run-analysis.js << 'EOF'
+        import { llmManager } from './dist/services/llm/manager.js';
+        import { llmConfig } from './dist/config/llm-config.js';
+        import { espnApi } from './dist/services/espnApi.js';
+        
+        async function runAnalysis() {
+          try {
+            // Initialize LLM
+            const config = {
+              provider: process.env.LLM_PROVIDER,
+              model: process.env.LLM_MODEL,
+              api_key: process.env.LLM_API_KEY,
+              max_tokens: 4000,
+              temperature: 0.3
+            };
+            
+            console.log(`🚀 Initializing ${config.provider}...`);
+            const initialized = await llmManager.initialize(config);
+            if (!initialized) {
+              throw new Error('Failed to initialize LLM');
+            }
+            
+            // Gather fantasy data
+            console.log('📊 Gathering fantasy data...');
+            const roster1Data = await getRosterData(process.env.LEAGUE_ID_1, process.env.TEAM_ID_1);
+            const roster2Data = await getRosterData(process.env.LEAGUE_ID_2, process.env.TEAM_ID_2);
+            
+            // Find injuries
+            const injuries = [...roster1Data.starters, ...roster1Data.bench, ...roster2Data.starters, ...roster2Data.bench]
+              .filter(player => player.injuryStatus)
+              .map(player => ({
+                fullName: player.fullName,
+                position: player.position,
+                team: player.team,
+                injuryStatus: player.injuryStatus
+              }));
+            
+            console.log(`🏥 Found ${injuries.length} injury concerns`);
+            
+            // Prepare analysis request
+            const request = {
+              context: {
+                week: parseInt(process.env.CURRENT_WEEK),
+                day_of_week: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
+                action_type: process.env.ACTION_TYPE,
+                priority: process.env.PRIORITY
+              },
+              data: {
+                rosters: [roster1Data, roster2Data],
+                injuries: injuries,
+                waiver_targets: [] // Could add waiver data here
+              },
+              user_preferences: {
+                risk_tolerance: 'balanced',
+                focus_areas: ['injuries', 'matchups', 'projections'],
+                notification_style: 'detailed'
+              }
+            };
+            
+            console.log('🧠 Running LLM analysis...');
+            const startTime = Date.now();
+            const response = await llmManager.analyzeFantasyData(request);
+            const analysisTime = Date.now() - startTime;
+            
+            console.log(`✅ Analysis complete in ${analysisTime}ms`);
+            console.log(`💰 Estimated cost: $${response.cost_estimate.estimated_cost.toFixed(4)}`);
+            console.log(`🎯 Generated ${response.recommendations.length} recommendations`);
+            
+            // Save detailed results
+            const results = {
+              timestamp: new Date().toISOString(),
+              context: request.context,
+              provider: response.metadata.provider,
+              model: response.metadata.model,
+              analysis: response.summary,
+              recommendations: response.recommendations,
+              cost: response.cost_estimate,
+              performance: {
+                analysis_time_ms: analysisTime,
+                response_time_ms: response.metadata.response_time_ms,
+                tool_calls: response.metadata.tool_calls_made
+              },
+              data_summary: {
+                leagues_analyzed: 2,
+                injuries_found: injuries.length,
+                total_players: roster1Data.starters.length + roster1Data.bench.length + 
+                              roster2Data.starters.length + roster2Data.bench.length
+              }
+            };
+            
+            // Write results to files
+            require('fs').writeFileSync('fantasy-analysis.json', JSON.stringify(results, null, 2));
+            require('fs').writeFileSync('recommendations.json', JSON.stringify(response.recommendations, null, 2));
+            
+            console.log('\n📋 ANALYSIS SUMMARY');
+            console.log('===================');
+            console.log(`Provider: ${response.metadata.provider} (${response.metadata.model})`);
+            console.log(`Cost: $${response.cost_estimate.estimated_cost.toFixed(4)} ${response.cost_estimate.currency}`);
+            console.log(`Tokens: ${response.cost_estimate.tokens_used}`);
+            console.log(`Time: ${analysisTime}ms`);
+            console.log(`Recommendations: ${response.recommendations.length}`);
+            console.log('\n📝 KEY FINDINGS:');
+            console.log(response.summary.substring(0, 500) + '...');
+            
+            // Output for GitHub Actions
+            console.log(`::set-output name=success::true`);
+            console.log(`::set-output name=cost::${response.cost_estimate.estimated_cost}`);
+            console.log(`::set-output name=recommendations::${response.recommendations.length}`);
+            
+          } catch (error) {
+            console.error('❌ Analysis failed:', error.message);
+            console.log(`::set-output name=success::false`);
+            console.log(`::set-output name=error::${error.message}`);
+            process.exit(1);
+          }
+        }
+        
+        async function getRosterData(leagueId, teamId) {
+          try {
+            return await espnApi.getTeamRoster(leagueId, teamId);
+          } catch (error) {
+            console.warn(`Failed to get roster for league ${leagueId}, team ${teamId}:`, error.message);
+            return { starters: [], bench: [] };
+          }
+        }
+        
+        runAnalysis();
+        EOF
+        
+        # Run the analysis
+        node run-analysis.js
+    
+    - name: Send Results Notification
+      if: always()
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        if [ -f "fantasy-poc/mcp-server/fantasy-analysis.json" ]; then
+          # Parse results for notification
+          PROVIDER=$(cat fantasy-poc/mcp-server/fantasy-analysis.json | jq -r '.provider')
+          MODEL=$(cat fantasy-poc/mcp-server/fantasy-analysis.json | jq -r '.model')
+          COST=$(cat fantasy-poc/mcp-server/fantasy-analysis.json | jq -r '.cost.estimated_cost')
+          RECOMMENDATIONS=$(cat fantasy-poc/mcp-server/fantasy-analysis.json | jq -r '.recommendations | length')
+          
+          # Check for cost alerts in recommendations
+          COST_ALERTS=$(cat fantasy-poc/mcp-server/fantasy-analysis.json | jq -r '.recommendations[] | select(.type == "alert" and (.action | contains("COST ALERT"))) | .action' | wc -l)
+          
+          # Create notification message with cost info
+          if [ "$COST_ALERTS" -gt 0 ]; then
+            COST_WARNING=" ⚠️ $COST_ALERTS cost alerts!"
+          else
+            COST_WARNING=""
+          fi
+          
+          MESSAGE="🤖 **Fantasy AI Analysis Complete**$COST_WARNING
+          
+**Provider:** $PROVIDER ($MODEL)
+**Week:** ${{ steps.week.outputs.week }}
+**Cost:** \$$(printf "%.4f" $COST)$COST_WARNING
+**Recommendations:** $RECOMMENDATIONS
+          
+📊 **Action Required:** Review detailed analysis and recommendations
+📁 **Details:** Check GitHub Actions artifacts for full report"
+          
+          # Send to Slack if configured
+          if [ ! -z "$SLACK_WEBHOOK_URL" ]; then
+            curl -X POST "$SLACK_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "{\"text\": \"$MESSAGE\"}"
+          fi
+          
+          # Send to Discord if configured
+          if [ ! -z "$DISCORD_WEBHOOK_URL" ]; then
+            curl -X POST "$DISCORD_WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d "{\"content\": \"$MESSAGE\"}"
+          fi
+        else
+          echo "❌ No analysis results found"
+        fi
+    
+    - name: Test LLM Configuration
+      if: github.event.inputs.action == 'test-llm'
+      working-directory: fantasy-poc/mcp-server
+      env:
+        LLM_PROVIDER: ${{ steps.llm-detection.outputs.provider }}
+        LLM_MODEL: ${{ steps.llm-detection.outputs.model }}
+        LLM_API_KEY: ${{ steps.llm-detection.outputs.api_key }}
+      run: |
+        echo "🧪 Testing LLM configuration..."
+        
+        cat > test-llm.js << 'EOF'
+        import { llmConfig } from './dist/config/llm-config.js';
+        
+        async function testLLM() {
+          console.log('Testing LLM configuration...');
+          const result = await llmConfig.testConfiguration();
+          
+          if (result.success) {
+            console.log('✅ LLM test successful!');
+            console.log(`Response preview: ${result.response}`);
+            console.log(`Test cost: $${result.cost?.toFixed(6) || 'unknown'}`);
+          } else {
+            console.log('❌ LLM test failed:');
+            console.log(result.error);
+            process.exit(1);
+          }
+        }
+        
+        testLLM();
+        EOF
+        
+        node test-llm.js
+    
+    - name: Upload Analysis Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fantasy-analysis-${{ steps.llm-detection.outputs.provider }}-${{ github.run_number }}
+        path: |
+          fantasy-poc/mcp-server/fantasy-analysis.json
+          fantasy-poc/mcp-server/recommendations.json
+          fantasy-poc/mcp-server/*.log
+        retention-days: 30

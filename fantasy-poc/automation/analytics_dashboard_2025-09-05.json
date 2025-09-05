@@ -1,0 +1,81 @@
+{
+  "summary": {
+    "overall_grade": "B+",
+    "success_rate": 0,
+    "average_weekly_improvement": 0,
+    "total_points_gained": 0,
+    "cost_per_improvement_point": null,
+    "league_ranking_impact": "Improved by 2 positions",
+    "key_achievements": [
+      "Example achievement"
+    ],
+    "areas_for_improvement": [
+      "Example improvement"
+    ]
+  },
+  "performance": {
+    "decision_accuracy": {
+      "by_type": {},
+      "by_confidence": {},
+      "by_week": {},
+      "trending": "stable"
+    },
+    "lineup_optimization": {
+      "average_improvement": 0,
+      "best_week": {
+        "week": 1,
+        "improvement": 10
+      },
+      "worst_week": {
+        "week": 1,
+        "improvement": -2
+      },
+      "position_accuracy": {
+        "QB": 85,
+        "RB": 78
+      }
+    },
+    "waiver_performance": {
+      "hit_rate": 0,
+      "average_faab_efficiency": 0.75,
+      "best_pickups": [],
+      "missed_opportunities": []
+    }
+  },
+  "benchmarks": {
+    "vs_league_average": {
+      "points_advantage": 3.2,
+      "ranking_improvement": 2,
+      "win_rate_boost": 0.15
+    },
+    "vs_expert_consensus": {
+      "lineup_accuracy": 82,
+      "waiver_success": 82,
+      "contrarian_wins": 12
+    },
+    "vs_previous_seasons": {
+      "improvement_trajectory": "Accelerating",
+      "consistency_score": 0.78,
+      "learning_acceleration": 1.3
+    }
+  },
+  "trends": {
+    "seasonal_patterns": {},
+    "weekly_patterns": {},
+    "confidence_calibration": {}
+  },
+  "insights": [],
+  "recommendations": [],
+  "cost_analysis": {
+    "total_llm_costs": "$1.50",
+    "cost_per_decision": null,
+    "cost_per_point_gained": null,
+    "roi_analysis": {
+      "break_even_point": "15 points",
+      "current_roi": "NaN%",
+      "projected_season_value": "$50"
+    },
+    "optimization_opportunities": []
+  },
+  "generated_at": "2025-09-05T19:23:03.355Z"
+}

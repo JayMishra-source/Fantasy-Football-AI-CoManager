@@ -1,0 +1,24 @@
+{
+  "name": "espn-fantasy-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for ESPN Fantasy Football integration with Claude",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "cd ../shared && npm run build && cd ../mcp-server && tsc",
+    "build:local": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "test": "npm run build && echo '{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\",\"id\":1}' | node dist/index.js"
+  },
+  "dependencies": {
+    "@fantasy-ai/shared": "file:../shared",
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

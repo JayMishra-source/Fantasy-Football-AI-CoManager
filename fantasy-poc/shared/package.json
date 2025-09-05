@@ -1,0 +1,36 @@
+{
+  "name": "@fantasy-ai/shared",
+  "version": "1.0.0",
+  "description": "Shared core logic for Fantasy Football AI Manager",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "npm run build && node test.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.60.0",
+    "@google/generative-ai": "^0.24.1",
+    "@types/cheerio": "^0.22.35",
+    "axios": "^1.7.9",
+    "cheerio": "^1.1.2",
+    "dotenv": "^16.4.7",
+    "node-cache": "^5.1.2",
+    "openai": "^5.16.0",
+    "puppeteer": "^24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./services/*": "./dist/services/*.js",
+    "./tools/*": "./dist/tools/*.js",
+    "./types/*": "./dist/types/*.js",
+    "./config/*": "./dist/config/*.js"
+  }
+}

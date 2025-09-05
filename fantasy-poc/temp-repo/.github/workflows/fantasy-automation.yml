@@ -1,0 +1,125 @@
+name: Fantasy Football Weekly Automation
+
+on:
+  schedule:
+    # Tuesday 8:00 AM EST (waiver wire processing)
+    - cron: '0 13 * * 2'
+    # Thursday 10:00 AM EST (pre-TNF lineup check)
+    - cron: '0 15 * * 4'
+    # Sunday 11:00 AM EST (pre-game lineup optimization)  
+    - cron: '0 16 * * 0'
+    # Monday 8:00 AM EST (post-MNF analysis)
+    - cron: '0 13 * * 1'
+  workflow_dispatch: # Allow manual trigger
+
+env:
+  ESPN_S2: ${{ secrets.ESPN_S2 }}
+  ESPN_SWID: ${{ secrets.ESPN_SWID }}
+  LEAGUE_1_ID: ${{ secrets.LEAGUE_1_ID }}
+  LEAGUE_1_TEAM_ID: ${{ secrets.LEAGUE_1_TEAM_ID }}
+  LEAGUE_2_ID: ${{ secrets.LEAGUE_2_ID }}
+  LEAGUE_2_TEAM_ID: ${{ secrets.LEAGUE_2_TEAM_ID }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  DEFAULT_LLM_PROVIDER: ${{ secrets.DEFAULT_LLM_PROVIDER }}
+  FANTASYPROS_SESSION_ID: ${{ secrets.FANTASYPROS_SESSION_ID }}
+  DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+
+jobs:
+  fantasy-automation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build project
+      run: npm run build
+      
+    - name: Determine automation task
+      id: task
+      run: |
+        DAY=$(date +%u)  # 1=Monday, 2=Tuesday, 4=Thursday, 7=Sunday
+        HOUR=$(date +%H)
+        
+        if [[ $DAY -eq 2 && $HOUR -eq 13 ]]; then
+          echo "task=waiver" >> $GITHUB_OUTPUT
+          echo "description=Tuesday Waiver Wire Analysis" >> $GITHUB_OUTPUT
+        elif [[ $DAY -eq 4 && $HOUR -eq 15 ]]; then
+          echo "task=thursday_lineup" >> $GITHUB_OUTPUT  
+          echo "description=Thursday Pre-TNF Lineup Check" >> $GITHUB_OUTPUT
+        elif [[ $DAY -eq 7 && $HOUR -eq 16 ]]; then
+          echo "task=sunday_lineup" >> $GITHUB_OUTPUT
+          echo "description=Sunday Pre-Game Lineup Optimization" >> $GITHUB_OUTPUT
+        elif [[ $DAY -eq 1 && $HOUR -eq 13 ]]; then
+          echo "task=monday_analysis" >> $GITHUB_OUTPUT
+          echo "description=Monday Post-Game Analysis" >> $GITHUB_OUTPUT
+        else
+          echo "task=general" >> $GITHUB_OUTPUT
+          echo "description=General Fantasy Analysis" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Run Fantasy Automation
+      run: |
+        echo "🏈 Running ${{ steps.task.outputs.description }}"
+        echo "📍 Current directory: $(pwd)"
+        echo "📂 Files in dist/automation-scripts:"
+        ls -la dist/automation-scripts/ || echo "dist/automation-scripts not found"
+        
+        case "${{ steps.task.outputs.task }}" in
+          "waiver")
+            node dist/automation-scripts/waiver-analysis.js
+            ;;
+          "thursday_lineup"|"sunday_lineup")
+            node dist/automation-scripts/lineup-optimizer.js
+            ;;
+          "monday_analysis")
+            node dist/automation-scripts/weekly-analysis.js
+            ;;
+          "general"|*)
+            node dist/automation-scripts/general-check.js || echo "Script failed with exit code $?"
+            ;;
+        esac
+        
+    - name: Generate automation report
+      if: always()
+      run: |
+        echo "📊 Fantasy Automation Report - $(date)" > automation-report.md
+        echo "" >> automation-report.md
+        echo "**Task**: ${{ steps.task.outputs.description }}" >> automation-report.md
+        echo "**Status**: ${{ job.status }}" >> automation-report.md
+        echo "**Timestamp**: $(date -u)" >> automation-report.md
+        echo "" >> automation-report.md
+        
+        if [ -f "automation-output.json" ]; then
+          echo "**Results**:" >> automation-report.md
+          echo "\`\`\`json" >> automation-report.md
+          cat automation-output.json >> automation-report.md
+          echo "\`\`\`" >> automation-report.md
+        fi
+        
+    - name: Upload automation artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: automation-report-${{ github.run_number }}
+        path: |
+          automation-report.md
+          automation-output.json
+          cost-log.json
+        retention-days: 30
+        
+    - name: Comment on commit (if manual run)
+      if: github.event_name == 'workflow_dispatch' && always()
+      run: |
+        if [ -f "automation-report.md" ]; then
+          echo "Manual automation run completed. Check artifacts for detailed results."
+        fi

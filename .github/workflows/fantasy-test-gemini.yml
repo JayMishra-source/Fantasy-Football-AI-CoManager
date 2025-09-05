@@ -1,0 +1,104 @@
+name: Fantasy AI (Gemini Test)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-gemini:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'package-lock.json'
+        
+    - name: Install and build
+      run: |
+        npm ci
+        npm run build
+      
+    - name: Test Gemini AI Analysis
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_1_ID }}
+        TEAM_ID_1: ${{ secrets.LEAGUE_1_TEAM_ID }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GEMINI_MODEL: gemini-1.5-flash
+      run: |
+        echo "🤖 Testing Gemini AI with your actual roster data"
+        
+        # First get roster data
+        echo "1. Getting your current roster:"
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_roster","arguments":{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"}},"id":"roster"}' | timeout 30 node dist/index.js > current_roster.json
+        
+        # Extract some key players for the prompt
+        STAR_PLAYERS=$(grep -o '"fullName":"[^"]*"' current_roster.json | head -5 | cut -d'"' -f4 | tr '\n' ', ' | sed 's/, $//')
+        echo "Key players: $STAR_PLAYERS"
+        
+        # Test direct LLM analysis with roster data
+        echo "2. Testing direct Gemini analysis:"
+        cat > llm_request.json << EOF
+        {
+          "jsonrpc": "2.0",
+          "method": "tools/call",
+          "params": {
+            "name": "direct_llm_analysis",
+            "arguments": {
+              "prompt": "Analyze this fantasy football roster for Week 1: $STAR_PLAYERS. Provide 3 specific insights about lineup optimization, injury concerns, and waiver targets. Be concise and actionable.",
+              "context": {
+                "week": 1,
+                "action_type": "lineup"
+              }
+            }
+          },
+          "id": "llm_test"
+        }
+        EOF
+        
+        timeout 60 node dist/index.js < llm_request.json > llm_result.json
+        echo "✅ Gemini analysis complete"
+        
+        echo "3. Gemini Response:"
+        cat llm_result.json
+        
+        echo "4. Extracting insights for Discord:"
+        # Extract the actual AI content
+        AI_CONTENT=$(grep -o '"content":"[^"]*"' llm_result.json | cut -d'"' -f4 | head -c 300 || echo "Analysis completed")
+        echo "Extracted content: $AI_CONTENT"
+    
+    - name: Send Test Results to Discord
+      if: always()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      run: |
+        if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+          # Get the AI insights we extracted
+          AI_INSIGHTS="Gemini AI test completed"
+          if [ -f "llm_result.json" ]; then
+            AI_INSIGHTS=$(grep -o '"content":"[^"]*"' llm_result.json | cut -d'"' -f4 | head -c 250 || echo "Gemini analysis completed")
+          fi
+          
+          # Send enhanced Discord message with actual AI insights
+          curl -H "Content-Type: application/json" -d "{
+            \"embeds\": [{
+              \"title\": \"🤖 Gemini AI Test Results\",
+              \"description\": \"**AI Analysis with Your Roster Data**\n\n$AI_INSIGHTS\",
+              \"color\": 5814783,
+              \"fields\": [
+                {\"name\": \"🧠 Model\", \"value\": \"Gemini 1.5 Flash\", \"inline\": true},
+                {\"name\": \"📊 Status\", \"value\": \"${{ job.status }}\", \"inline\": true}
+              ],
+              \"footer\": {\"text\": \"Phase 4: Full Gemini Integration Test\"}
+            }]
+          }" "$DISCORD_WEBHOOK_URL"
+          
+          echo "✅ Test results sent to Discord"
+        fi

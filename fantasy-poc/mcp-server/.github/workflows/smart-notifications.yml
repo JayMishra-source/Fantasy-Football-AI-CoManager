@@ -1,0 +1,211 @@
+name: Smart Fantasy Notifications
+
+on:
+  schedule:
+    # Thursday 6PM ET
+    - cron: '0 23 * * 4'
+    # Sunday 11AM ET
+    - cron: '0 16 * * 0'
+    # Monday 6PM ET
+    - cron: '0 23 * * 1'
+  
+  workflow_dispatch:
+
+jobs:
+  fantasy-intelligence:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'fantasy-poc/mcp-server/package-lock.json'
+        
+    - name: Install dependencies
+      working-directory: fantasy-poc/mcp-server
+      run: npm ci
+      
+    - name: Build MCP server
+      working-directory: fantasy-poc/mcp-server
+      run: npm run build
+      
+    - name: Gather Fantasy Intelligence
+      working-directory: fantasy-poc/mcp-server
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_ID_1 }}
+        TEAM_ID_1: ${{ secrets.TEAM_ID_1 }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_ID_2 }}
+        TEAM_ID_2: ${{ secrets.TEAM_ID_2 }}
+      run: |
+        # Get current week
+        SEASON_START="2025-09-04"
+        CURRENT_DATE=$(date +%Y-%m-%d)
+        DAYS_DIFF=$(( ($(date -d "$CURRENT_DATE" +%s) - $(date -d "$SEASON_START" +%s)) / 86400 ))
+        WEEK=$(( DAYS_DIFF <= 0 ? 1 : (DAYS_DIFF / 7) + 1 ))
+        WEEK=$(( WEEK > 18 ? 18 : WEEK ))
+        
+        echo "Analyzing Week $WEEK..."
+        
+        # Gather roster data for both leagues
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_roster","arguments":{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"}},"id":1}' | node dist/index.js > league1_roster.json
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_roster","arguments":{"leagueId":"'$LEAGUE_ID_2'","teamId":"'$TEAM_ID_2'"}},"id":2}' | node dist/index.js > league2_roster.json
+        
+        # Find injuries across both rosters
+        INJURIES=$(cat league1_roster.json league2_roster.json | jq -r '
+          .result.content[0].text | fromjson | 
+          [.starters[]?, .bench[]?] | 
+          map(select(.injuryStatus != null)) | 
+          map("• \(.fullName) (\(.position), \(.team)) - \(.injuryStatus)") | 
+          join("\n")
+        ')
+        
+        # Get waiver targets if it's Monday/Tuesday
+        WAIVER_TARGETS=""
+        if [[ "$(date +%u)" -ge 1 && "$(date +%u)" -le 2 ]]; then
+          echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"find_waiver_targets","arguments":{"leagueId":"'$LEAGUE_ID_1'","maxResults":5}},"id":3}' | node dist/index.js > waiver_targets.json
+          WAIVER_TARGETS=$(cat waiver_targets.json | jq -r '
+            .result.content[0].text | fromjson |
+            [.players[0:3][]?] |
+            map("• \(.fullName) (\(.position), \(.team)) - \(.projectedPoints) pts, \(.percentOwned)% owned") |
+            join("\n")
+          ')
+        fi
+        
+        # Determine action context
+        DAY_OF_WEEK=$(date +%u)  # 1=Monday, 4=Thursday, 7=Sunday
+        if [ "$DAY_OF_WEEK" -eq 4 ]; then
+          ACTION_CONTEXT="Thursday Evening Lineup Review"
+          PRIORITY="🟡 Medium Priority"
+          TASKS="• Check for any late injury news\n• Optimize starting lineups\n• Consider Thursday night game players"
+        elif [ "$DAY_OF_WEEK" -eq 7 ]; then
+          ACTION_CONTEXT="Sunday Morning Final Check"
+          PRIORITY="🔴 HIGH PRIORITY"
+          TASKS="• Final lineup optimization\n• Last-minute injury replacements\n• Confirm all starters are active"
+        elif [ "$DAY_OF_WEEK" -eq 1 ]; then
+          ACTION_CONTEXT="Monday Evening Waiver Analysis"
+          PRIORITY="🟢 Low Priority"
+          TASKS="• Review week performance\n• Identify waiver wire targets\n• Plan for next week"
+        else
+          ACTION_CONTEXT="General Fantasy Check"
+          PRIORITY="🔵 Info"
+          TASKS="• Review roster status"
+        fi
+        
+        # Create rich Slack notification
+        curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+          -H "Content-Type: application/json" \
+          -d "{
+            \"text\": \"🏈 $ACTION_CONTEXT - Week $WEEK\",
+            \"blocks\": [
+              {
+                \"type\": \"header\",
+                \"text\": {
+                  \"type\": \"plain_text\",
+                  \"text\": \"🏈 Fantasy Football Alert - Week $WEEK\"
+                }
+              },
+              {
+                \"type\": \"section\",
+                \"fields\": [
+                  {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*Action Required:*\n$ACTION_CONTEXT\"
+                  },
+                  {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"*Priority:*\n$PRIORITY\"
+                  }
+                ]
+              },
+              $([ ! -z \"$INJURIES\" ] && echo "{
+                \"type\": \"section\",
+                \"text\": {
+                  \"type\": \"mrkdwn\",
+                  \"text\": \"*🏥 Injury Report:*\n$INJURIES\"
+                }
+              },")
+              $([ ! -z \"$WAIVER_TARGETS\" ] && echo "{
+                \"type\": \"section\",
+                \"text\": {
+                  \"type\": \"mrkdwn\",
+                  \"text\": \"*🎯 Top Waiver Targets:*\n$WAIVER_TARGETS\"
+                }
+              },")
+              {
+                \"type\": \"section\",
+                \"text\": {
+                  \"type\": \"mrkdwn\",
+                  \"text\": \"*📋 Recommended Tasks:*\n$TASKS\"
+                }
+              },
+              {
+                \"type\": \"section\",
+                \"text\": {
+                  \"type\": \"mrkdwn\",
+                  \"text\": \"*🤖 Next Steps:*\nOpen Claude Desktop and use your MCP server to analyze and optimize your lineups.\"
+                }
+              },
+              {
+                \"type\": \"actions\",
+                \"elements\": [
+                  {
+                    \"type\": \"button\",
+                    \"text\": {
+                      \"type\": \"plain_text\",
+                      \"text\": \"📊 View Detailed Analysis\"
+                    },
+                    \"url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+                  }
+                ]
+              }
+            ]
+          }"
+        
+        # Save data files for manual Claude Desktop analysis
+        echo "Week $WEEK fantasy data saved for Claude Desktop analysis"
+        
+        # Create summary file for easy reference
+        cat > weekly_summary.md << EOF
+        # Week $WEEK Fantasy Summary
+        
+        **Generated:** $(date)
+        **Priority:** $PRIORITY
+        **Context:** $ACTION_CONTEXT
+        
+        ## 🏥 Injury Report
+        $INJURIES
+        
+        ## 🎯 Waiver Targets
+        $WAIVER_TARGETS
+        
+        ## 📋 Recommended Actions
+        $TASKS
+        
+        ## 🔍 Files for Claude Desktop Analysis
+        - league1_roster.json
+        - league2_roster.json
+        - waiver_targets.json (if applicable)
+        
+        ## 💡 Claude Desktop Commands
+        Use these with your MCP server:
+        - \`my_roster\` - Quick roster overview
+        - \`optimize_lineup league 1\` - Optimize League 1 lineup
+        - \`optimize_lineup league 2\` - Optimize League 2 lineup
+        - \`find_waiver_targets\` - Get waiver recommendations
+        EOF
+    
+    - name: Upload Analysis Data
+      uses: actions/upload-artifact@v4
+      with:
+        name: weekly-fantasy-data
+        path: |
+          fantasy-poc/mcp-server/*.json
+          fantasy-poc/mcp-server/*.md
+        retention-days: 7

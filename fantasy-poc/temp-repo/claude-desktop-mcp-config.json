@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "fantasy-football": {
+      "command": "node",
+      "args": ["/Users/jaymishra/Desktop/FantasyCoManager/fantasy-poc/temp-repo/dist/index.js"],
+      "env": {
+        "GEMINI_API_KEY": "AIzaSyCU6I7oVaONlXAXe1jzn_PoeziqHaFM5nk",
+        "LEAGUE_2_ID": "21366365",
+        "LEAGUE_2_TEAM_ID": "7",
+        "ESPN_S2": "YOUR_ESPN_S2_COOKIE_HERE",
+        "ESPN_SWID": "YOUR_ESPN_SWID_COOKIE_HERE"
+      }
+    }
+  }
+}

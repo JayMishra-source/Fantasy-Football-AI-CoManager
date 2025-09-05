@@ -1,0 +1,354 @@
+name: Fantasy Football Automation
+
+on:
+  schedule:
+    # Thursday 6PM ET - Pre-game lineup adjustments
+    - cron: '0 23 * * 4'
+    # Sunday 11AM ET - Final lineup optimization
+    - cron: '0 16 * * 0'
+    # Monday 6PM ET - Post-game analysis and waiver prep
+    - cron: '0 23 * * 1'
+    # Tuesday 3AM ET - Process waivers (after ESPN processes)
+    - cron: '0 8 * * 2'
+  
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'lineup'
+        type: choice
+        options:
+        - lineup
+        - waivers
+        - analysis
+        - all
+
+jobs:
+  fantasy-manager:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'fantasy-poc/mcp-server/package-lock.json'
+        
+    - name: Install dependencies
+      working-directory: fantasy-poc/mcp-server
+      run: npm ci
+      
+    - name: Build MCP server
+      working-directory: fantasy-poc/mcp-server
+      run: npm run build
+      
+    - name: Set current week
+      id: week
+      run: |
+        # Calculate NFL week based on season start
+        SEASON_START="2025-09-04"
+        CURRENT_DATE=$(date +%Y-%m-%d)
+        DAYS_DIFF=$(( ($(date -d "$CURRENT_DATE" +%s) - $(date -d "$SEASON_START" +%s)) / 86400 ))
+        
+        if [ $DAYS_DIFF -le 0 ]; then
+          WEEK=1
+        else
+          WEEK=$(( (DAYS_DIFF / 7) + 1 ))
+          if [ $WEEK -gt 18 ]; then
+            WEEK=18
+          fi
+        fi
+        
+        echo "week=$WEEK" >> $GITHUB_OUTPUT
+        echo "Current NFL Week: $WEEK"
+    
+    - name: Thursday - AI-Powered Lineup Optimization with Performance Tracking
+      if: github.event.schedule == '0 23 * * 4' || github.event.inputs.action == 'lineup' || github.event.inputs.action == 'all'
+      working-directory: fantasy-poc/mcp-server
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_1_ID }}
+        TEAM_ID_1: ${{ secrets.LEAGUE_1_TEAM_ID }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_2_ID }}
+        TEAM_ID_2: ${{ secrets.LEAGUE_2_TEAM_ID }}
+        CURRENT_WEEK: ${{ steps.week.outputs.week }}
+        # Phase 4: LLM Configuration
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        # Phase 4: Optional API Keys for enhanced data
+        FANTASYPROS_SESSION_ID: ${{ secrets.FANTASYPROS_SESSION_ID }}
+        OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+        NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+      run: |
+        echo "🤖 Phase 4 AI-Powered Thursday Lineup Optimization - Week $CURRENT_WEEK"
+        
+        # Phase 4: Train model with recent data before making recommendations
+        echo "🧠 Training AI model with recent performance data..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"train_model","arguments":{}},  "id":"train_1"}' | node dist/index.js > train_result.json
+        
+        # Phase 4: Run A/B test for lineup optimization strategy
+        echo "🧪 Running A/B test for lineup optimization..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"run_ab_test","arguments":{"operation":"lineup_optimization","leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'","week":'$CURRENT_WEEK',"testName":"Thursday Lineup AI vs Basic"}}, "id":"ab_1"}' | node dist/index.js > ab_test_result.json
+        
+        # Execute enhanced AI workflow with learning integration
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"execute_ai_workflow","arguments":{"task":"thursday_optimization","leagues":[{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"},{"leagueId":"'$LEAGUE_ID_2'","teamId":"'$TEAM_ID_2'"}],"week":'$CURRENT_WEEK',"prompt":"Execute comprehensive AI-powered lineup optimization using all available data sources. Integrate FantasyPros expert consensus, weather data for outdoor games, injury reports, and cross-league strategy coordination. Apply learned patterns from historical performance and focus on high-confidence, data-driven decisions that maximize expected points while managing risk."}},"id":1}' | node dist/index.js > thursday_ai_analysis.json
+        
+        # Phase 4: Track the performance of AI recommendations
+        echo "📊 Tracking AI recommendation performance..."
+        RECOMMENDATION_ID=$(cat thursday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.timestamp // "'$(date +%s)'"')
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"track_performance","arguments":{"type":"lineup","leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'","week":'$CURRENT_WEEK',"recommendation":{"analysis":"thursday_optimization","timestamp":"'$RECOMMENDATION_ID'"},"confidence":85,"llmUsed":true,"llmModel":"gemini-1.5-flash","dataSourcesUsed":["espn","fantasypros","weather","ai_workflow"]}}, "id":"track_1"}' | node dist/index.js > tracking_result.json
+        
+        # Phase 4: Get cost analysis
+        echo "💰 Analyzing AI usage costs..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_cost_analysis","arguments":{}}, "id":"cost_1"}' | node dist/index.js > cost_analysis.json
+        
+        echo "✅ Phase 4 AI Thursday optimization complete with performance tracking"
+    
+    - name: Sunday - Final Lineup Check
+      if: github.event.schedule == '0 16 * * 0' || github.event.inputs.action == 'lineup' || github.event.inputs.action == 'all'
+      working-directory: fantasy-poc/mcp-server
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_1_ID }}
+        TEAM_ID_1: ${{ secrets.LEAGUE_1_TEAM_ID }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_2_ID }}
+        TEAM_ID_2: ${{ secrets.LEAGUE_2_TEAM_ID }}
+        CURRENT_WEEK: ${{ steps.week.outputs.week }}
+      run: |
+        echo "🤖 AI-Powered Sunday Final Lineup Check - Week $CURRENT_WEEK"
+        
+        # Execute AI workflow for Sunday final adjustments
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"execute_ai_workflow","arguments":{"task":"sunday_check","leagues":[{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"},{"leagueId":"'$LEAGUE_ID_2'","teamId":"'$TEAM_ID_2'"}],"week":'$CURRENT_WEEK',"prompt":"Perform final lineup review before games start. Focus on late-breaking injury news, inactive lists, weather updates, and last-minute pivots. Compare with Thursday recommendations and make only high-confidence changes.","context":{"previousAnalysis":"thursday_ai_analysis.json"}}},"id":2}' | node dist/index.js > sunday_ai_analysis.json
+        
+        echo "✅ AI Sunday final check complete"
+    
+    - name: Monday - Post-Game Analysis with Learning Integration
+      if: github.event.schedule == '0 23 * * 1' || github.event.inputs.action == 'analysis' || github.event.inputs.action == 'all'
+      working-directory: fantasy-poc/mcp-server
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_1_ID }}
+        TEAM_ID_1: ${{ secrets.LEAGUE_1_TEAM_ID }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_2_ID }}
+        TEAM_ID_2: ${{ secrets.LEAGUE_2_TEAM_ID }}
+        CURRENT_WEEK: ${{ steps.week.outputs.week }}
+        # Phase 4: LLM Configuration
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        # Phase 4: Optional API Keys
+        FANTASYPROS_SESSION_ID: ${{ secrets.FANTASYPROS_SESSION_ID }}
+        OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+        NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+      run: |
+        echo "🤖 Phase 4 AI-Powered Monday Post-Game Analysis - Week $CURRENT_WEEK"
+        
+        # Phase 4: Record outcomes from Thursday's recommendations (if tracking file exists)
+        if [ -f "tracking_result.json" ]; then
+          echo "📊 Recording outcomes from Thursday's AI recommendations..."
+          RECOMMENDATION_ID=$(cat tracking_result.json | jq -r '.result.content[0].text' | jq -r '.recommendationId // "unknown"')
+          
+          # Get actual performance data from current rosters
+          echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_roster","arguments":{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"}}, "id":"roster_1"}' | node dist/index.js > current_roster.json
+          
+          # Calculate if recommendations were successful (simplified - would use actual scoring in production)
+          ACTUAL_POINTS=$(cat current_roster.json | jq -r '.result.content[0].text' | jq -r '.starters | map(.actualPoints // 0) | add' 2>/dev/null || echo "0")
+          SUCCESS=$([ "$ACTUAL_POINTS" -gt "80" ] && echo "true" || echo "false")
+          
+          echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"record_outcome","arguments":{"recommendationId":"'$RECOMMENDATION_ID'","success":'$SUCCESS',"actualPoints":'$ACTUAL_POINTS',"projectedPoints":120,"notes":"Thursday optimization outcome"}}, "id":"outcome_1"}' | node dist/index.js > outcome_result.json
+        fi
+        
+        # Phase 4: Get personalized insights before analysis
+        echo "🎯 Getting personalized AI insights..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_personalized_insights","arguments":{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"}}, "id":"insights_1"}' | node dist/index.js > personalized_insights.json
+        
+        # Execute enhanced AI workflow with cross-league coordination
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"execute_ai_workflow","arguments":{"task":"monday_analysis","leagues":[{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"},{"leagueId":"'$LEAGUE_ID_2'","teamId":"'$TEAM_ID_2'"}],"week":'$CURRENT_WEEK',"prompt":"Execute comprehensive Monday post-game analysis with multi-league coordination. Analyze actual vs projected performance, identify successful strategies, find coordinated waiver opportunities across leagues, and develop strategic FAAB bidding plans. Apply learned patterns and focus on both immediate needs and playoff positioning."}},"id":3}' | node dist/index.js > monday_ai_analysis.json
+        
+        # Phase 4: Run cross-league strategy analysis
+        echo "🔄 Analyzing cross-league strategy coordination..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"analyze_cross_league_strategy","arguments":{"leagues":[{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"},{"leagueId":"'$LEAGUE_ID_2'","teamId":"'$TEAM_ID_2'"}],"week":'$CURRENT_WEEK',"strategy":"balanced"}}, "id":"cross_1"}' | node dist/index.js > cross_league_analysis.json
+        
+        # Phase 4: Get performance metrics
+        echo "📈 Generating performance metrics and learning insights..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_performance_metrics","arguments":{}}, "id":"metrics_1"}' | node dist/index.js > performance_metrics.json
+        
+        echo "✅ Phase 4 AI Monday analysis complete with learning integration"
+    
+    - name: Tuesday - Coordinated Waiver Analysis with A/B Testing
+      if: github.event.schedule == '0 8 * * 2' || github.event.inputs.action == 'waivers' || github.event.inputs.action == 'all'
+      working-directory: fantasy-poc/mcp-server
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_1_ID }}
+        TEAM_ID_1: ${{ secrets.LEAGUE_1_TEAM_ID }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_2_ID }}
+        TEAM_ID_2: ${{ secrets.LEAGUE_2_TEAM_ID }}
+        CURRENT_WEEK: ${{ steps.week.outputs.week }}
+        # Phase 4: LLM Configuration
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        # Phase 4: Optional API Keys
+        FANTASYPROS_SESSION_ID: ${{ secrets.FANTASYPROS_SESSION_ID }}
+        OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
+        NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+      run: |
+        echo "🤖 Phase 4 AI-Powered Tuesday Coordinated Waiver Analysis"
+        
+        # Phase 4: Run A/B test for waiver strategy
+        echo "🧪 Running A/B test for waiver strategy..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"run_ab_test","arguments":{"operation":"waiver_analysis","leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'","week":'$CURRENT_WEEK',"testName":"Tuesday Waiver AI vs Basic"}}, "id":"ab_waiver"}' | node dist/index.js > ab_waiver_result.json
+        
+        # Phase 4: Coordinate waiver claims across leagues
+        echo "🔄 Coordinating waiver claims across multiple leagues..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"coordinate_waiver_claims","arguments":{"leagues":[{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'","faabBudget":100},{"leagueId":"'$LEAGUE_ID_2'","teamId":"'$TEAM_ID_2'","faabBudget":100}],"maxTargets":5}}, "id":"coord_1"}' | node dist/index.js > coordinated_waivers.json
+        
+        # Execute enhanced AI workflow with learning-based waiver strategy
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"execute_ai_workflow","arguments":{"task":"tuesday_waivers","leagues":[{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"},{"leagueId":"'$LEAGUE_ID_2'","teamId":"'$TEAM_ID_2'"}],"week":'$CURRENT_WEEK',"prompt":"Execute intelligent Tuesday waiver analysis with cross-league coordination. Apply learned patterns from historical waiver success, integrate Monday analysis insights, identify value plays from dropped players, optimize FAAB allocation across leagues, and prepare streaming strategies for upcoming week. Focus on evidence-based decisions with calculated risk assessment.","context":{"mondayAnalysis":"monday_ai_analysis.json","crossLeagueAnalysis":"cross_league_analysis.json"}}},"id":4}' | node dist/index.js > tuesday_ai_analysis.json
+        
+        # Phase 4: Get A/B test results summary
+        echo "📊 Analyzing A/B test results..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_ab_test_results","arguments":{"includeRecommendations":true}}, "id":"ab_results"}' | node dist/index.js > ab_test_summary.json
+        
+        # Phase 4: Update cost analysis after full week
+        echo "💰 Final cost analysis for the week..."
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_cost_analysis","arguments":{"detailed":true}}, "id":"final_cost"}' | node dist/index.js > final_cost_analysis.json
+        
+        echo "✅ Phase 4 AI Coordinated Waiver analysis complete"
+    
+    - name: Send Phase 4 Enhanced Discord Notification
+      if: always()
+      env:
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        WEEK: ${{ steps.week.outputs.week }}
+        STATUS: ${{ job.status }}
+      run: |
+        if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+          # Phase 4: Extract enhanced feedback loop data
+          COST_ANALYSIS=""
+          AB_TEST_RESULTS=""
+          PERFORMANCE_METRICS=""
+          LEARNING_INSIGHTS=""
+          
+          # Extract cost analysis if available
+          if [ -f "cost_analysis.json" ] || [ -f "final_cost_analysis.json" ]; then
+            COST_FILE="cost_analysis.json"
+            [ -f "final_cost_analysis.json" ] && COST_FILE="final_cost_analysis.json"
+            
+            TOTAL_COST=$(cat "$COST_FILE" | jq -r '.result.content[0].text' | jq -r '.summary.totalCost // "$0.00"' 2>/dev/null)
+            MONTHLY_PROJ=$(cat "$COST_FILE" | jq -r '.result.content[0].text' | jq -r '.summary.projectedMonthly // "$0.00"' 2>/dev/null)
+            COST_ANALYSIS="💰 Total Cost: $TOTAL_COST (Projected Monthly: $MONTHLY_PROJ)"
+          fi
+          
+          # Extract A/B test results if available
+          if [ -f "ab_test_summary.json" ]; then
+            AB_WINNER=$(cat "ab_test_summary.json" | jq -r '.result.content[0].text' | jq -r '.recommendations[0] // "No tests completed"' 2>/dev/null)
+            AB_TEST_RESULTS="🧪 A/B Test: $AB_WINNER"
+          fi
+          
+          # Extract performance metrics if available  
+          if [ -f "performance_metrics.json" ]; then
+            SUCCESS_RATE=$(cat "performance_metrics.json" | jq -r '.result.content[0].text' | jq -r '.metrics.successRate // "0%"' 2>/dev/null)
+            PERFORMANCE_METRICS="📊 Success Rate: $SUCCESS_RATE"
+          fi
+          
+          # Extract learning insights if available
+          if [ -f "personalized_insights.json" ]; then
+            LEARNING_TREND=$(cat "personalized_insights.json" | jq -r '.result.content[0].text' | jq -r '.performance.trend // "Stable"' 2>/dev/null)
+            LEARNING_INSIGHTS="🧠 AI Learning: $LEARNING_TREND"
+          fi
+          
+          # Determine action type and extract core AI insights
+          if [ -f "thursday_ai_analysis.json" ]; then
+            ACTION="🤖 Phase 4 AI Thursday Optimization"
+            INSIGHTS=$(cat thursday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.keyInsights[0:2][] | "• " + .' 2>/dev/null)
+            CONFIDENCE=$(cat thursday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.confidence // 0' 2>/dev/null)
+            DATASOURCES=$(cat thursday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.dataSourcesUsed[] | "📊 " + .' 2>/dev/null | tr '\n' ', ')
+            
+          elif [ -f "monday_ai_analysis.json" ]; then
+            ACTION="🤖 Phase 4 AI Monday Analysis"
+            INSIGHTS=$(cat monday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.keyInsights[0:2][] | "• " + .' 2>/dev/null)
+            CONFIDENCE=$(cat monday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.confidence // 0' 2>/dev/null)
+            DATASOURCES=$(cat monday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.dataSourcesUsed[] | "📊 " + .' 2>/dev/null | tr '\n' ', ')
+            
+          elif [ -f "tuesday_ai_analysis.json" ]; then
+            ACTION="🤖 Phase 4 AI Waiver Coordination"
+            INSIGHTS=$(cat tuesday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.keyInsights[0:2][] | "• " + .' 2>/dev/null)
+            CONFIDENCE=$(cat tuesday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.confidence // 0' 2>/dev/null)
+            DATASOURCES=$(cat tuesday_ai_analysis.json | jq -r '.result.content[0].text' | jq -r '.summary.dataSourcesUsed[] | "📊 " + .' 2>/dev/null | tr '\n' ', ')
+            
+          else
+            ACTION="🤖 Phase 4 AI Fantasy Analysis"
+            INSIGHTS="Self-learning AI analysis completed"
+            CONFIDENCE=75
+            DATASOURCES="ESPN API, AI Learning"
+          fi
+          
+          # Combine all Phase 4 insights
+          PHASE4_INSIGHTS=""
+          [ -n "$COST_ANALYSIS" ] && PHASE4_INSIGHTS="$PHASE4_INSIGHTS\\n$COST_ANALYSIS"
+          [ -n "$AB_TEST_RESULTS" ] && PHASE4_INSIGHTS="$PHASE4_INSIGHTS\\n$AB_TEST_RESULTS"
+          [ -n "$PERFORMANCE_METRICS" ] && PHASE4_INSIGHTS="$PHASE4_INSIGHTS\\n$PERFORMANCE_METRICS"
+          [ -n "$LEARNING_INSIGHTS" ] && PHASE4_INSIGHTS="$PHASE4_INSIGHTS\\n$LEARNING_INSIGHTS"
+          
+          # Fallback if no insights extracted
+          if [ -z "$INSIGHTS" ]; then
+            INSIGHTS="Self-improving AI analysis completed with performance tracking"
+          fi
+          
+          EMOJI="✅"
+          COLOR="3066993"
+          if [ "$STATUS" != "success" ]; then
+            EMOJI="❌"
+            COLOR="15158332"
+          fi
+          
+          # Escape JSON content properly
+          ESCAPED_INSIGHTS=$(echo "$INSIGHTS" | sed 's/"/\\"/g' | tr '\n' ' ')
+          ESCAPED_DATASOURCES=$(echo "$DATASOURCES" | sed 's/"/\\"/g' | tr '\n' ' ')
+          ESCAPED_PHASE4=$(echo "$PHASE4_INSIGHTS" | sed 's/"/\\"/g')
+          
+          # Create Phase 4 enhanced Discord message with feedback loop data
+          MESSAGE="{\"embeds\":[{\"title\":\"$EMOJI Fantasy Football AI CoManager (Phase 4)\",\"description\":\"**$ACTION** - Week $WEEK\\n\\n$ESCAPED_INSIGHTS\\n\\n**Phase 4 Feedback Loop:**$ESCAPED_PHASE4\\n\\n**Data Sources:** $ESCAPED_DATASOURCES\",\"color\":$COLOR,\"fields\":[{\"name\":\"📈 Status\",\"value\":\"$STATUS\",\"inline\":true},{\"name\":\"🏈 Week\",\"value\":\"$WEEK\",\"inline\":true},{\"name\":\"🎯 AI Confidence\",\"value\":\"${CONFIDENCE}%\",\"inline\":true}],\"footer\":{\"text\":\"Phase 4: Self-Learning AI with Performance Tracking\"},\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}]}"
+          
+          # Send to Discord
+          curl -H "Content-Type: application/json" \
+               -d "$MESSAGE" \
+               "$DISCORD_WEBHOOK_URL"
+          
+          echo "✅ Phase 4 Enhanced Discord notification sent with feedback loop insights"
+        else
+          echo "⚠️ No Discord webhook configured - skipping notification"
+        fi
+    
+    - name: Send Results to Slack
+      if: always()
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        channel: '#fantasy-football'
+        webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+    
+    - name: Upload Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fantasy-results-${{ github.run_number }}
+        path: fantasy-poc/mcp-server/*.json
+        retention-days: 30

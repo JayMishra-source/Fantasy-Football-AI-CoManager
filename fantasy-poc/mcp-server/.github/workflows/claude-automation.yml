@@ -1,0 +1,256 @@
+name: Claude Fantasy Automation
+
+on:
+  schedule:
+    # Thursday 6PM ET - Lineup optimization
+    - cron: '0 23 * * 4'
+    # Sunday 11AM ET - Final check
+    - cron: '0 16 * * 0'
+    # Monday 6PM ET - Waiver analysis
+    - cron: '0 23 * * 1'
+  
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'lineup'
+        type: choice
+        options:
+        - lineup
+        - waivers
+        - analysis
+
+jobs:
+  claude-fantasy-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'fantasy-poc/mcp-server/package-lock.json'
+        
+    - name: Install dependencies
+      working-directory: fantasy-poc/mcp-server
+      run: npm ci
+      
+    - name: Build MCP server
+      working-directory: fantasy-poc/mcp-server
+      run: npm run build
+      
+    - name: Create Claude API Tool Definitions
+      working-directory: fantasy-poc/mcp-server
+      run: |
+        cat > claude-tools.json << 'EOF'
+        [
+          {
+            "name": "get_roster",
+            "description": "Get current roster for a fantasy team with all player details",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "leagueId": {"type": "string", "description": "ESPN Fantasy league ID"},
+                "teamId": {"type": "string", "description": "Team ID within the league"}
+              },
+              "required": ["leagueId", "teamId"]
+            }
+          },
+          {
+            "name": "optimize_lineup",
+            "description": "Get optimal lineup recommendations based on projections and matchups",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "leagueId": {"type": "string"},
+                "teamId": {"type": "string"},
+                "week": {"type": "number", "description": "Week number (optional)"}
+              },
+              "required": ["leagueId", "teamId"]
+            }
+          },
+          {
+            "name": "find_waiver_targets",
+            "description": "Find and rank available players on waivers with pickup recommendations",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "leagueId": {"type": "string"},
+                "teamId": {"type": "string"},
+                "position": {"type": "string", "description": "Filter by position (QB, RB, WR, TE, K, DST)"},
+                "maxResults": {"type": "number", "description": "Maximum number of results (default 10)"}
+              },
+              "required": ["leagueId"]
+            }
+          }
+        ]
+        EOF
+    
+    - name: Set current week
+      id: week
+      run: |
+        SEASON_START="2025-09-04"
+        CURRENT_DATE=$(date +%Y-%m-%d)
+        DAYS_DIFF=$(( ($(date -d "$CURRENT_DATE" +%s) - $(date -d "$SEASON_START" +%s)) / 86400 ))
+        
+        if [ $DAYS_DIFF -le 0 ]; then
+          WEEK=1
+        else
+          WEEK=$(( (DAYS_DIFF / 7) + 1 ))
+          if [ $WEEK -gt 18 ]; then
+            WEEK=18
+          fi
+        fi
+        
+        echo "week=$WEEK" >> $GITHUB_OUTPUT
+        echo "Current NFL Week: $WEEK"
+    
+    - name: Create MCP Tool Executor
+      working-directory: fantasy-poc/mcp-server
+      run: |
+        cat > execute-mcp-tool.js << 'EOF'
+        const { spawn } = require('child_process');
+        
+        async function executeMCPTool(toolName, args) {
+          return new Promise((resolve, reject) => {
+            const input = JSON.stringify({
+              jsonrpc: "2.0",
+              method: "tools/call",
+              params: { name: toolName, arguments: args },
+              id: Date.now()
+            });
+            
+            const child = spawn('node', ['dist/index.js'], {
+              stdio: ['pipe', 'pipe', 'inherit'],
+              env: process.env
+            });
+            
+            let output = '';
+            child.stdout.on('data', (data) => {
+              output += data.toString();
+            });
+            
+            child.on('close', (code) => {
+              try {
+                const result = JSON.parse(output);
+                if (result.error) {
+                  reject(new Error(result.error.message));
+                } else {
+                  resolve(result.result.content[0].text);
+                }
+              } catch (e) {
+                reject(e);
+              }
+            });
+            
+            child.stdin.write(input);
+            child.stdin.end();
+          });
+        }
+        
+        // Export for Claude API simulation
+        if (require.main === module) {
+          const toolName = process.argv[2];
+          const args = JSON.parse(process.argv[3] || '{}');
+          
+          executeMCPTool(toolName, args)
+            .then(result => console.log(result))
+            .catch(err => {
+              console.error('Tool execution failed:', err.message);
+              process.exit(1);
+            });
+        }
+        
+        module.exports = { executeMCPTool };
+        EOF
+    
+    - name: Thursday - Claude Lineup Analysis
+      if: github.event.schedule == '0 23 * * 4' || github.event.inputs.action == 'lineup'
+      working-directory: fantasy-poc/mcp-server
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_ID_1 }}
+        TEAM_ID_1: ${{ secrets.TEAM_ID_1 }}
+        LEAGUE_ID_2: ${{ secrets.LEAGUE_ID_2 }}
+        TEAM_ID_2: ${{ secrets.TEAM_ID_2 }}
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        CURRENT_WEEK: ${{ steps.week.outputs.week }}
+      run: |
+        echo "🏈 Thursday Claude Analysis - Week $CURRENT_WEEK"
+        
+        # Create Claude API request
+        cat > claude-request.json << EOF
+        {
+          "model": "claude-3-sonnet-20241022",
+          "max_tokens": 4000,
+          "messages": [
+            {
+              "role": "user",
+              "content": "It's Thursday evening before Week $CURRENT_WEEK of fantasy football. Please help me optimize my fantasy lineups for both of my leagues. I need you to:\n\n1. Check my current rosters for both teams\n2. Identify any injury concerns or players with poor matchups\n3. Recommend optimal lineups\n4. Suggest any waiver wire pickups if there are clear upgrades\n\nLeague 1: ID $LEAGUE_ID_1, Team $TEAM_ID_1\nLeague 2: ID $LEAGUE_ID_2, Team $TEAM_ID_2\n\nPlease be thorough but concise in your analysis."
+            }
+          ],
+          "tools": $(cat claude-tools.json)
+        }
+        EOF
+        
+        # Call Claude API (if API key provided)
+        if [ ! -z "$CLAUDE_API_KEY" ]; then
+          echo "Calling Claude API for lineup analysis..."
+          curl -X POST https://api.anthropic.com/v1/messages \
+            -H "Content-Type: application/json" \
+            -H "x-api-key: $CLAUDE_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -d @claude-request.json \
+            -o claude-response.json
+          
+          # Extract and format Claude's response
+          if [ -f claude-response.json ]; then
+            # Process Claude's tool calls and execute them
+            echo "Processing Claude's decisions..."
+            
+            # This would need a more sophisticated tool call executor
+            # For now, just save the response
+            cat claude-response.json | jq '.content[0].text' > thursday-analysis.txt
+          fi
+        else
+          echo "⚠️ Claude API key not provided, falling back to notification mode"
+          
+          # Gather data for manual review
+          node execute-mcp-tool.js "get_roster" "{\"leagueId\":\"$LEAGUE_ID_1\",\"teamId\":\"$TEAM_ID_1\"}" > roster1.json
+          node execute-mcp-tool.js "get_roster" "{\"leagueId\":\"$LEAGUE_ID_2\",\"teamId\":\"$TEAM_ID_2\"}" > roster2.json
+          
+          # Send notification with data
+          INJURIES=$(cat roster1.json roster2.json | jq -r '[.starters[]?, .bench[]?] | map(select(.injuryStatus != null)) | map("\(.fullName) (\(.position)) - \(.injuryStatus)") | join("\n")')
+          
+          curl -X POST ${{ secrets.SLACK_WEBHOOK_URL }} \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \"🏈 Thursday Lineup Check - Week $CURRENT_WEEK\",
+              \"blocks\": [
+                {
+                  \"type\": \"section\",
+                  \"text\": {
+                    \"type\": \"mrkdwn\",
+                    \"text\": \"Time for lineup optimization!\n\n*Injury Report:*\n\`\`\`$INJURIES\`\`\`\n\n*Action Required:*\nPlease use Claude Desktop MCP to optimize lineups.\"
+                  }
+                }
+              ]
+            }"
+        fi
+    
+    - name: Save Analysis Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: fantasy-analysis-${{ github.run_number }}
+        path: |
+          fantasy-poc/mcp-server/*.json
+          fantasy-poc/mcp-server/*.txt
+        retention-days: 7

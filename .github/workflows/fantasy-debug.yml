@@ -1,0 +1,70 @@
+name: Fantasy Football AI (Debug)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug-ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: 'package-lock.json'
+        
+    - name: Install and build
+      run: |
+        npm ci
+        npm run build
+      
+    - name: Debug AI Response
+      env:
+        ESPN_S2: ${{ secrets.ESPN_S2 }}
+        ESPN_SWID: ${{ secrets.ESPN_SWID }}
+        LEAGUE_ID_1: ${{ secrets.LEAGUE_1_ID }}
+        TEAM_ID_1: ${{ secrets.LEAGUE_1_TEAM_ID }}
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GEMINI_MODEL: gemini-1.5-flash
+      run: |
+        echo "🔍 Testing AI workflow with debug output"
+        
+        # Test simple roster call first
+        echo "1. Testing basic roster call:"
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_roster","arguments":{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"}},"id":"roster_test"}' | timeout 30 node dist/index.js > roster_test.json
+        echo "✅ Roster test complete"
+        echo "Roster response:"
+        cat roster_test.json
+        echo "---"
+        
+        # Test AI workflow call
+        echo "2. Testing AI workflow:"
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"execute_ai_workflow","arguments":{"task":"thursday_optimization","leagues":[{"leagueId":"'$LEAGUE_ID_1'","teamId":"'$TEAM_ID_1'"}],"week":1,"prompt":"Simple test analysis"}},"id":"ai_test"}' | timeout 60 node dist/index.js > ai_test.json
+        echo "✅ AI workflow test complete"
+        echo "AI response:"
+        cat ai_test.json
+        echo "---"
+        
+        # Test cost analysis
+        echo "3. Testing cost analysis:"
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"get_cost_analysis","arguments":{}},"id":"cost_test"}' | timeout 30 node dist/index.js > cost_test.json
+        echo "✅ Cost test complete"
+        echo "Cost response:"
+        cat cost_test.json
+        echo "---"
+        
+        echo "🔍 All tests completed - check the outputs above"
+    
+    - name: Upload Debug Results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: debug-results-${{ github.run_number }}
+        path: "*.json"
+        retention-days: 3
