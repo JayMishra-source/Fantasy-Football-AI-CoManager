@@ -175,9 +175,9 @@ export class MultiSeasonIntelligenceEngine {
       prompt: `Optimize fantasy football strategy for ${this.currentPhase} season (week ${this.currentWeek}):
 
               Historical Context:
-              - Previous seasons data: ${this.seasonalData.historical_data.length} seasons analyzed
+              - Previous seasons data: ${this.seasonalData.historical_data?.length || 0} seasons analyzed
               - Current season performance: ${this.getCurrentSeasonPerformance()}
-              - Identified patterns: ${this.seasonalData.cross_season_patterns.length} cross-season patterns
+              - Identified patterns: ${this.seasonalData.cross_season_patterns?.length || 0} cross-season patterns
               
               Base Strategy for ${this.currentPhase.toUpperCase()} Season:
               ${JSON.stringify(baseStrategy, null, 2)}
@@ -233,7 +233,7 @@ export class MultiSeasonIntelligenceEngine {
               - Meta shifts observed: ${this.getCurrentMetaShifts().join(', ')}
 
               Player Development Data Available:
-              - ${this.seasonalData.player_development.length} players with multi-season tracking
+              - ${this.seasonalData.player_development?.length || 0} players with multi-season tracking
               - Average tracking period: ${this.getAverageTrackingPeriod()} seasons
               
               Generate predictions for:
@@ -277,8 +277,8 @@ export class MultiSeasonIntelligenceEngine {
       prompt: `Analyze fantasy football league evolution and meta changes:
 
               Historical League Data:
-              ${this.seasonalData.league_evolution.map(le => 
-                `Season ${le.season}: ${le.meta_strategy}, ${le.rule_changes.length} rule changes`
+              ${(this.seasonalData.league_evolution || []).map(le => 
+                `Season ${le.season}: ${le.meta_strategy}, ${le.rule_changes?.length || 0} rule changes`
               ).join('\n')}
 
               Current Season Observations:
@@ -306,6 +306,9 @@ export class MultiSeasonIntelligenceEngine {
     const evolutionData = this.parseEvolutionAnalysis(evolutionAnalysis);
     
     // Update league evolution data
+    if (!this.seasonalData.league_evolution) {
+      this.seasonalData.league_evolution = [];
+    }
     this.seasonalData.league_evolution.push(evolutionData);
 
     return evolutionData;
@@ -317,7 +320,7 @@ export class MultiSeasonIntelligenceEngine {
   private async analyzeSeasonalPatterns(): Promise<void> {
     console.log('🔍 Analyzing cross-season patterns...');
 
-    if (this.seasonalData.historical_data.length < 2) {
+    if ((this.seasonalData.historical_data?.length || 0) < 2) {
       console.log('📝 Insufficient historical data for pattern analysis');
       return;
     }
@@ -329,12 +332,12 @@ export class MultiSeasonIntelligenceEngine {
       prompt: `Identify cross-season patterns in fantasy football decision-making:
 
               Historical Season Data:
-              ${this.seasonalData.historical_data.map(sd => 
+              ${(this.seasonalData.historical_data || []).map(sd => 
                 `Season ${sd.year}: ${sd.success_rate}% success, +${sd.points_improvement} pts, ${sd.key_insights.length} insights`
               ).join('\n')}
 
-              Existing Patterns (${this.seasonalData.cross_season_patterns.length}):
-              ${this.seasonalData.cross_season_patterns.slice(0, 5).map(p => 
+              Existing Patterns (${this.seasonalData.cross_season_patterns?.length || 0}):
+              ${(this.seasonalData.cross_season_patterns || []).slice(0, 5).map(p => 
                 `- ${p.pattern_name}: ${p.reliability_score}% reliable across ${p.seasons_observed.length} seasons`
               ).join('\n')}
 
@@ -361,7 +364,7 @@ export class MultiSeasonIntelligenceEngine {
     // Update existing patterns and add new ones
     this.updateCrossSeasonPatterns(newPatterns);
 
-    console.log(`📊 Updated patterns: ${this.seasonalData.cross_season_patterns.length} total`);
+    console.log(`📊 Updated patterns: ${this.seasonalData.cross_season_patterns?.length || 0} total`);
   }
 
   /**
@@ -377,7 +380,7 @@ export class MultiSeasonIntelligenceEngine {
     }
 
     // Skip if no players are being tracked
-    if (this.seasonalData.player_development.length === 0) {
+    if ((this.seasonalData.player_development?.length || 0) === 0) {
       console.log('📝 No player development data available for modeling');
       return;
     }
