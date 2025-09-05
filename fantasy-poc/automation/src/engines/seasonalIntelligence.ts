@@ -370,6 +370,18 @@ export class MultiSeasonIntelligenceEngine {
   private async updatePlayerDevelopmentModels(): Promise<void> {
     console.log('👥 Updating player development models...');
 
+    // Ensure player_development is initialized as an array
+    if (!Array.isArray(this.seasonalData?.player_development)) {
+      console.log('⚠️ Player development data not properly initialized, skipping update');
+      return;
+    }
+
+    // Skip if no players are being tracked
+    if (this.seasonalData.player_development.length === 0) {
+      console.log('📝 No player development data available for modeling');
+      return;
+    }
+
     // Get current season performance data for tracked players
     const currentSeasonData = this.getCurrentSeasonPlayerData();
 
