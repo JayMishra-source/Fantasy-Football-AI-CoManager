@@ -411,6 +411,11 @@ export class MultiSeasonIntelligenceEngine {
   private async generatePredictiveInsights(): Promise<void> {
     console.log('🎯 Generating predictive insights...');
 
+    // Initialize predictive_models if undefined
+    if (!this.seasonalData.predictive_models) {
+      this.seasonalData.predictive_models = [];
+    }
+
     // Update existing predictive models
     for (const model of this.seasonalData.predictive_models) {
       await this.updatePredictiveModel(model);
