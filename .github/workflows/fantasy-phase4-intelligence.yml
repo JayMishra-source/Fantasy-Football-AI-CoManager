@@ -220,13 +220,21 @@ jobs:
         run: |
           echo "🧠 Executing Phase 4 Advanced Intelligence"
           echo "Mode: ${{ matrix.mode }}"
-          echo "Week: ${{ needs.preflight-intelligence.outputs.current_week }}"
+          
+          # Set current week with fallback
+          CURRENT_WEEK="${{ needs.preflight-intelligence.outputs.current_week }}"
+          if [ -z "$CURRENT_WEEK" ]; then
+            CURRENT_WEEK="5"
+            echo "⚠️ Using fallback week: $CURRENT_WEEK"
+          else
+            echo "Week: $CURRENT_WEEK"
+          fi
           
           # Execute intelligence based on mode
           case "${{ matrix.mode }}" in
             "full")
               echo "🚀 Running full advanced intelligence analysis..."
-              node dist/cli.js intelligence --mode full --week ${{ needs.preflight-intelligence.outputs.current_week }}
+              node dist/cli.js intelligence --mode full --week $CURRENT_WEEK
               ;;
             "realtime")
               echo "⚡ Running real-time intelligence monitoring..."
@@ -250,7 +258,7 @@ jobs:
               ;;
             *)
               echo "❓ Unknown mode: ${{ matrix.mode }}, defaulting to full analysis"
-              node dist/cli.js intelligence --mode full --week ${{ needs.preflight-intelligence.outputs.current_week }}
+              node dist/cli.js intelligence --mode full --week $CURRENT_WEEK
               ;;
           esac
           
