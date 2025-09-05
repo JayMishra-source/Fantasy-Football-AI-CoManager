@@ -375,47 +375,79 @@ jobs:
           NEXT_ACTIONS=""
           GRADE=""
           
-          if [[ -f "fantasy-poc/automation/phase4_results.json" ]]; then
-            INSIGHTS=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.key_insights[0:3][]?' 2>/dev/null | head -3 || echo "Analysis complete")
-            URGENT_ACTIONS=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
-            NEXT_ACTIONS=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
-            GRADE=$(cat fantasy-poc/automation/phase4_results.json | jq -r '.insights.performance_grade' 2>/dev/null || echo "N/A")
+          # Check multiple possible locations for the results file
+          RESULTS_FILE=""
+          if [[ -f "results/phase4_results.json" ]]; then
+            RESULTS_FILE="results/phase4_results.json"
+          elif [[ -f "fantasy-poc/automation/phase4_results.json" ]]; then
+            RESULTS_FILE="fantasy-poc/automation/phase4_results.json"
           fi
           
-          # Format insights for better readability
-          FORMATTED_INSIGHTS=""
+          if [[ -n "$RESULTS_FILE" ]]; then
+            echo "📄 Found results file: $RESULTS_FILE"
+            INSIGHTS=$(cat "$RESULTS_FILE" | jq -r '.insights.key_insights[0:3][]?' 2>/dev/null | head -3 || echo "Analysis complete")
+            URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
+            NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
+            GRADE=$(cat "$RESULTS_FILE" | jq -r '.insights.performance_grade' 2>/dev/null || echo "N/A")
+          else
+            echo "⚠️ No results file found in expected locations"
+          fi
+          
+          
+          # Build description content safely
+          DESCRIPTION="**Mode**: $MODE | **Week**: $WEEK | **Grade**: $GRADE"
+          
+          # Add insights if available
           if [[ -n "$INSIGHTS" ]]; then
-            FORMATTED_INSIGHTS="📊 **Key Insights:**\\n$(echo "$INSIGHTS" | sed 's/^/• /')\\n\\n"
+            DESCRIPTION="$DESCRIPTION"$'\n\n📊 **Key Insights:**'
+            while IFS= read -r line; do
+              DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
+            done <<< "$INSIGHTS"
           fi
           
-          FORMATTED_URGENT=""
+          # Add urgent actions if available
           if [[ -n "$URGENT_ACTIONS" ]]; then
-            FORMATTED_URGENT="🚨 **Urgent Actions:**\\n$(echo "$URGENT_ACTIONS" | sed 's/^/• /')\\n\\n"
+            DESCRIPTION="$DESCRIPTION"$'\n\n🚨 **Urgent Actions:**'
+            while IFS= read -r line; do
+              DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
+            done <<< "$URGENT_ACTIONS"
           fi
           
-          FORMATTED_NEXT=""
+          # Add next actions if available
           if [[ -n "$NEXT_ACTIONS" ]]; then
-            FORMATTED_NEXT="📋 **Next Steps:**\\n$(echo "$NEXT_ACTIONS" | sed 's/^/• /')\\n\\n"
+            DESCRIPTION="$DESCRIPTION"$'\n\n📋 **Next Steps:**'
+            while IFS= read -r line; do
+              DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
+            done <<< "$NEXT_ACTIONS"
           fi
           
-          # Send Discord notification
+          # Send Discord notification using jq for proper JSON formatting
           if [[ -n "$DISCORD_WEBHOOK_URL" ]]; then
-            curl -X POST "$DISCORD_WEBHOOK_URL" \
-              -H "Content-Type: application/json" \
-              -d "{
-                \"embeds\": [{
-                  \"title\": \"🧠 Phase 4 Advanced Intelligence - $STATUS\",
-                  \"description\": \"**Mode**: $MODE | **Week**: $WEEK | **Grade**: $GRADE\\n\\n${FORMATTED_INSIGHTS}${FORMATTED_URGENT}${FORMATTED_NEXT}\",
-                  \"color\": $COLOR,
-                  \"fields\": [
-                    {\"name\": \"🎯 Intelligence Mode\", \"value\": \"$MODE\", \"inline\": true},
-                    {\"name\": \"📅 NFL Week\", \"value\": \"$WEEK\", \"inline\": true},
-                    {\"name\": \"🏆 Performance Grade\", \"value\": \"$GRADE\", \"inline\": true}
+            jq -n \
+              --arg title "🧠 Phase 4 Advanced Intelligence - $STATUS" \
+              --arg description "$DESCRIPTION" \
+              --argjson color "$COLOR" \
+              --arg mode "$MODE" \
+              --arg week "$WEEK" \
+              --arg grade "$GRADE" \
+              --arg footer "Fantasy AI Phase 4 Advanced Intelligence • $(date +'%b %d, %Y at %I:%M %p UTC')" \
+              --arg timestamp "$(date -Iseconds)" \
+              '{
+                embeds: [{
+                  title: $title,
+                  description: $description,
+                  color: $color,
+                  fields: [
+                    {name: "🎯 Intelligence Mode", value: $mode, inline: true},
+                    {name: "📅 NFL Week", value: $week, inline: true},
+                    {name: "🏆 Performance Grade", value: $grade, inline: true}
                   ],
-                  \"footer\": {\"text\": \"Fantasy AI Phase 4 Advanced Intelligence • $(date +'%b %d, %Y at %I:%M %p UTC')\"},
-                  \"timestamp\": \"$(date -Iseconds)\"
+                  footer: {text: $footer},
+                  timestamp: $timestamp
                 }]
-              }"
+              }' | curl -X POST "$DISCORD_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d @-
           fi
           
           echo "📨 Notifications sent successfully"
