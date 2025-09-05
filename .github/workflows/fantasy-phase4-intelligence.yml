@@ -68,7 +68,7 @@ jobs:
       - name: Install Dependencies
         working-directory: fantasy-poc/automation
         run: |
-          npm ci --production
+          npm ci
           npm run build
 
       - name: Intelligence Preflight Check
@@ -161,7 +161,7 @@ jobs:
       - name: Install Dependencies
         working-directory: fantasy-poc/automation
         run: |
-          npm ci --production
+          npm ci
           npm run build
 
       - name: Load Historical Intelligence Data

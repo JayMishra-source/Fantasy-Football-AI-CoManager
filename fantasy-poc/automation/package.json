@@ -8,7 +8,7 @@
     "fantasy-ai": "./dist/cli.js"
   },
   "scripts": {
-    "build": "cd ../shared && npm run build && cd ../automation && tsc",
+    "build": "cd ../shared && npm ci && npm run build && cd ../automation && tsc",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
     "test": "npm run build && node dist/cli.js --help",
