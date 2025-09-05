@@ -400,42 +400,34 @@ jobs:
           script: |
             const mode = '${{ needs.preflight-intelligence.outputs.intelligence_mode }}';
             const week = '${{ needs.preflight-intelligence.outputs.current_week }}';
-            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const runUrl = `https://github.com/` + context.repo.owner + `/` + context.repo.repo + `/actions/runs/` + context.runId;
             
-            const title = `🧠 Phase 4 Intelligence Failure - ${mode.toUpperCase()} Mode (Week ${week})`;
-            const body = `
-## 🚨 Phase 4 Advanced Intelligence Failure
-
-**Intelligence Mode**: ${mode}
-**NFL Week**: ${week}
-**Execution Time**: ${new Date().toISOString()}
-**Workflow Run**: [${context.runId}](${runUrl})
-
-### Failure Details
-The Phase 4 advanced intelligence system encountered a failure during execution.
-
-### Troubleshooting Steps
-1. **Check LLM API Keys**: Verify all configured LLM providers are accessible
-2. **Validate ESPN Cookies**: Ensure ESPN_S2 and ESPN_SWID are current
-3. **Review Cost Limits**: Check if daily/weekly cost limits were exceeded
-4. **Intelligence Data**: Verify intelligence data files are accessible
-5. **Network Connectivity**: Ensure external API access is available
-
-### Intelligence Components
-- **Real-time Engine**: Event monitoring and instant decisions
-- **Adaptive Learning**: Pattern recognition and strategy evolution
-- **Analytics Engine**: Performance analysis and insights
-- **Seasonal Intelligence**: Multi-season pattern analysis
-
-### Next Actions
-- [ ] Review workflow logs for specific error details
-- [ ] Test individual intelligence components
-- [ ] Verify all required environment variables
-- [ ] Check intelligence data consistency
-- [ ] Run manual intelligence validation
-
-**Auto-created by Phase 4 Intelligence Workflow**
-            `;
+            const title = '🧠 Phase 4 Intelligence Failure - ' + mode.toUpperCase() + ' Mode (Week ' + week + ')';
+            const body = '## 🚨 Phase 4 Advanced Intelligence Failure\n\n' +
+              '**Intelligence Mode**: ' + mode + '\n' +
+              '**NFL Week**: ' + week + '\n' +
+              '**Execution Time**: ' + new Date().toISOString() + '\n' +
+              '**Workflow Run**: [' + context.runId + '](' + runUrl + ')\n\n' +
+              '### Failure Details\n' +
+              'The Phase 4 advanced intelligence system encountered a failure during execution.\n\n' +
+              '### Troubleshooting Steps\n' +
+              '1. **Check LLM API Keys**: Verify all configured LLM providers are accessible\n' +
+              '2. **Validate ESPN Cookies**: Ensure ESPN_S2 and ESPN_SWID are current\n' +
+              '3. **Review Cost Limits**: Check if daily/weekly cost limits were exceeded\n' +
+              '4. **Intelligence Data**: Verify intelligence data files are accessible\n' +
+              '5. **Network Connectivity**: Ensure external API access is available\n\n' +
+              '### Intelligence Components\n' +
+              '- **Real-time Engine**: Event monitoring and instant decisions\n' +
+              '- **Adaptive Learning**: Pattern recognition and strategy evolution\n' +
+              '- **Analytics Engine**: Performance analysis and insights\n' +
+              '- **Seasonal Intelligence**: Multi-season pattern analysis\n\n' +
+              '### Next Actions\n' +
+              '- [ ] Review workflow logs for specific error details\n' +
+              '- [ ] Test individual intelligence components\n' +
+              '- [ ] Verify all required environment variables\n' +
+              '- [ ] Check intelligence data consistency\n' +
+              '- [ ] Run manual intelligence validation\n\n' +
+              '**Auto-created by Phase 4 Intelligence Workflow**';
             
             github.rest.issues.create({
               owner: context.repo.owner,
