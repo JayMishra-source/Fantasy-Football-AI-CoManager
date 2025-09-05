@@ -429,6 +429,11 @@ export class MultiSeasonIntelligenceEngine {
   private async optimizeSeasonalStrategy(): Promise<void> {
     console.log('⚙️ Optimizing seasonal strategies...');
 
+    // Initialize seasonal_strategies if undefined
+    if (!this.seasonalData.seasonal_strategies) {
+      this.seasonalData.seasonal_strategies = this.getDefaultSeasonalStrategies();
+    }
+
     const phases: SeasonalStrategy['phase'][] = ['early', 'mid', 'late', 'playoff'];
     
     for (const phase of phases) {
