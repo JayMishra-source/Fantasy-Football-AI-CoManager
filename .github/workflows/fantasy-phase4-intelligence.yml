@@ -114,7 +114,7 @@ jobs:
           echo "current_week=$CURRENT_WEEK" >> $GITHUB_OUTPUT
           
           # Initialize environment and validate configuration
-          npm run cli init
+          node dist/cli.js init
           
           # Check if we should run based on schedule and conditions
           SHOULD_RUN="true"
@@ -226,31 +226,31 @@ jobs:
           case "${{ matrix.mode }}" in
             "full")
               echo "🚀 Running full advanced intelligence analysis..."
-              npm run cli intelligence --mode full --week ${{ needs.preflight-intelligence.outputs.current_week }}
+              node dist/cli.js intelligence --mode full --week ${{ needs.preflight-intelligence.outputs.current_week }}
               ;;
             "realtime")
               echo "⚡ Running real-time intelligence monitoring..."
-              npm run cli realtime
+              node dist/cli.js realtime
               ;;
             "learning")
               echo "🧠 Running adaptive learning cycle..."
-              npm run cli learning
+              node dist/cli.js learning
               ;;
             "analytics")
               echo "📊 Generating advanced analytics dashboard..."
-              npm run cli analytics
+              node dist/cli.js analytics
               ;;
             "seasonal")
               echo "🔮 Processing multi-season intelligence..."
-              npm run cli seasonal
+              node dist/cli.js seasonal
               ;;
             "emergency")
               echo "🚨 Activating emergency intelligence protocols..."
-              npm run cli emergency
+              node dist/cli.js emergency
               ;;
             *)
               echo "❓ Unknown mode: ${{ matrix.mode }}, defaulting to full analysis"
-              npm run cli intelligence --mode full --week ${{ needs.preflight-intelligence.outputs.current_week }}
+              node dist/cli.js intelligence --mode full --week ${{ needs.preflight-intelligence.outputs.current_week }}
               ;;
           esac
           
