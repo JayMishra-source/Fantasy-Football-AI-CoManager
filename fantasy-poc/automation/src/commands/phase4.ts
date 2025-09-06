@@ -429,8 +429,19 @@ async function generateIntelligenceSummary(mode: string, week: number, realResul
     }
   }
 
+  // Ensure balanced insights from both leagues for Discord formatting
+  let balanced_insights = key_insights;
+  if (key_insights.length > 8) {
+    // If we have many insights, try to balance between leagues
+    const mainLeagueInsights = key_insights.filter(insight => insight.includes('Main League')).slice(0, 4);
+    const secondaryLeagueInsights = key_insights.filter(insight => insight.includes('Secondary League')).slice(0, 4);
+    const otherInsights = key_insights.filter(insight => !insight.includes('Main League') && !insight.includes('Secondary League')).slice(0, 2);
+    
+    balanced_insights = [...mainLeagueInsights, ...secondaryLeagueInsights, ...otherInsights].slice(0, 8);
+  }
+
   const insights = {
-    key_insights: key_insights.slice(0, 5), // Limit for Discord formatting
+    key_insights: balanced_insights.slice(0, 8), // Allow up to 8 insights for both leagues
     urgent_actions: urgent_actions.slice(0, 3), // Limit for Discord formatting
     performance_grade: calculatePerformanceGrade(mode, realResults),
     next_actions: next_actions.slice(0, 4) // Limit for Discord formatting
