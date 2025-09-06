@@ -105,6 +105,15 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
     
     let realAnalysisResults: any = {};
 
+    // Ensure LLM is fully initialized before processing leagues
+    console.log('🤖 Pre-initializing LLM for all league analysis...');
+    const { llmConfig: llmConfigService } = await import('@fantasy-ai/shared');
+    const llmInitialized = await llmConfigService.initializeLLM();
+    if (!llmInitialized) {
+      throw new Error('Failed to initialize LLM before league analysis');
+    }
+    console.log('✅ LLM pre-initialization complete');
+
     // Execute comprehensive AI workflow for all configured leagues
     if (mode === 'full' || mode === 'realtime') {
       console.log('⚡ Running real-time intelligence across all leagues...');
@@ -112,14 +121,15 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
       const leaguePromises = config.leagues.map(async (league) => {
         console.log(`🏈 Analyzing ${league.name}...`);
         
-        // Get current roster
-        const roster = await getMyRoster({ 
-          leagueId: league.id, 
-          teamId: league.teamId 
-        });
-        
-        // Run comprehensive AI analysis
-        const analysis = await executeAIWorkflow({
+        try {
+          // Get current roster
+          const roster = await getMyRoster({ 
+            leagueId: league.id, 
+            teamId: league.teamId 
+          });
+          
+          // Run comprehensive AI analysis
+          const analysis = await executeAIWorkflow({
           task: 'thursday_optimization',
           leagues: [{
             leagueId: league.id,
@@ -141,13 +151,33 @@ Please provide:
 4. Risk assessment for key decisions
 
 Focus on actionable insights I can implement immediately. Use real player names and specific reasoning based on matchups, trends, and projections.`
-        });
+          });
 
-        return {
-          league: league.name,
-          roster: roster,
-          analysis: analysis
-        };
+          return {
+            league: league.name,
+            roster: roster,
+            analysis: analysis
+          };
+          
+        } catch (leagueError: any) {
+          console.error(`❌ Analysis failed for ${league.name}:`, leagueError.message);
+          
+          // Return error analysis instead of failing completely
+          return {
+            league: league.name,
+            roster: null,
+            analysis: {
+              success: false,
+              error: leagueError.message,
+              summary: {
+                keyInsights: [`Analysis failed: ${leagueError.message}`],
+                confidence: 0,
+                dataSourcesUsed: ['Error']
+              },
+              recommendations: []
+            }
+          };
+        }
       });
       
       const leagueResults = await Promise.all(leaguePromises);
@@ -306,11 +336,15 @@ async function generateIntelligenceSummary(mode: string, week: number, realResul
       const leagueName = leagueResult.league;
       const analysis = leagueResult.analysis;
       
+      // Handle both successful and error analysis results
       if (analysis?.summary?.keyInsights) {
         // Add league-specific insights
         analysis.summary.keyInsights.forEach((insight: string) => {
           key_insights.push(`${leagueName}: ${insight}`);
         });
+      } else if (analysis?.error) {
+        // Handle error case
+        key_insights.push(`${leagueName}: Analysis failed: ${analysis.error}`);
       }
       
       if (analysis?.recommendations) {
