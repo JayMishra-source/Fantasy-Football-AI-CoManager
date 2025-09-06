@@ -1,9 +1,15 @@
 import { 
-  runRealTimeMonitoring,
-  runAdaptiveLearning, 
-  generateAnalyticsDashboard,
-  runSeasonalIntelligence
-} from '../engines/index.js';
+  executeAIWorkflow,
+  getMyRoster,
+  analyzeCrossLeagueStrategy,
+  trainModel,
+  runABTest,
+  trackPerformance,
+  getPersonalizedInsights,
+  getPerformanceMetrics,
+  getCostAnalysis
+} from '@fantasy-ai/shared';
+import { loadProductionConfig } from '../config/production.js';
 import { writeFileSync } from 'fs';
 import { getCurrentWeek } from '../utils/environment.js';
 
@@ -48,37 +54,132 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
   };
 
   try {
-    // Execute based on mode
+    const config = loadProductionConfig();
+    let realAnalysisResults: any = {};
+
+    // Execute comprehensive AI workflow for all configured leagues
     if (mode === 'full' || mode === 'realtime') {
-      console.log('⚡ Running real-time intelligence monitoring...');
-      await runRealTimeMonitoring();
-      result.intelligence_summary.realtime_events = 3; // Placeholder
-      console.log('✅ Real-time monitoring complete');
+      console.log('⚡ Running real-time intelligence across all leagues...');
+      
+      const leaguePromises = config.leagues.map(async (league) => {
+        console.log(`🏈 Analyzing ${league.name}...`);
+        
+        // Get current roster
+        const roster = await getMyRoster({ 
+          leagueId: league.id, 
+          teamId: league.teamId 
+        });
+        
+        // Run comprehensive AI analysis
+        const analysis = await executeAIWorkflow({
+          task: 'thursday_optimization',
+          leagues: [{
+            leagueId: league.id,
+            teamId: league.teamId,
+            name: league.name
+          }],
+          week: week,
+          prompt: `Analyze my current roster and provide specific, actionable recommendations for Week ${week}. 
+
+Current Context:
+- League: ${league.name} 
+- Team ID: ${league.teamId}
+- Week: ${week}
+
+Please provide:
+1. SPECIFIC lineup recommendations (who to start/sit with reasoning)
+2. SPECIFIC waiver wire targets available in this league
+3. SPECIFIC trade opportunities based on league activity
+4. Risk assessment for key decisions
+
+Focus on actionable insights I can implement immediately. Use real player names and specific reasoning based on matchups, trends, and projections.`
+        });
+
+        return {
+          league: league.name,
+          roster: roster,
+          analysis: analysis
+        };
+      });
+      
+      const leagueResults = await Promise.all(leaguePromises);
+      realAnalysisResults.leagues = leagueResults;
+      result.intelligence_summary.realtime_events = leagueResults.length;
+      console.log(`✅ Real-time analysis complete for ${leagueResults.length} leagues`);
     }
 
     if (mode === 'full' || mode === 'learning') {
-      console.log('🧠 Running adaptive learning cycle...');
-      await runAdaptiveLearning();
-      result.intelligence_summary.patterns_learned = 5; // Placeholder
+      console.log('🧠 Running adaptive learning and performance tracking...');
+      
+      // Train model with recent data
+      const modelResult = await trainModel({ updateFrequency: 'weekly' });
+      
+      // Get performance metrics
+      const metrics = await getPerformanceMetrics({ 
+        timeframe: 'last_month',
+        includeComparison: true 
+      });
+      
+      // Get personalized insights based on historical performance
+      const insights = await getPersonalizedInsights({ 
+        analysisType: 'comprehensive',
+        includeRecommendations: true 
+      });
+      
+      realAnalysisResults.learning = {
+        model: modelResult,
+        metrics: metrics,
+        insights: insights
+      };
+      
+      result.intelligence_summary.patterns_learned = metrics?.metrics?.averageScore ? 1 : 0;
       console.log('✅ Adaptive learning complete');
     }
 
     if (mode === 'full' || mode === 'analytics') {
-      console.log('📊 Generating advanced analytics dashboard...');
-      await generateAnalyticsDashboard();
+      console.log('📊 Generating advanced analytics and cost analysis...');
+      
+      // Get comprehensive cost analysis
+      const costAnalysis = await getCostAnalysis({ 
+        detailed: true,
+        includeOptimization: true 
+      });
+      
+      // Analyze cross-league strategy
+      const crossLeague = await analyzeCrossLeagueStrategy({ 
+        operation: 'weekly_coordination',
+        week: week 
+      });
+      
+      realAnalysisResults.analytics = {
+        costs: costAnalysis,
+        crossLeague: crossLeague
+      };
+      
       result.intelligence_summary.analytics_generated = true;
-      console.log('✅ Analytics dashboard complete');
+      console.log('✅ Analytics generation complete');
     }
 
     if (mode === 'full' || mode === 'seasonal') {
-      console.log('🔮 Processing seasonal intelligence...');
-      await runSeasonalIntelligence();
-      result.intelligence_summary.seasonal_insights = 8; // Placeholder
+      console.log('🔮 Running A/B testing and seasonal optimization...');
+      
+      // Run A/B test for different strategies
+      const abTest = await runABTest({
+        testName: `Week_${week}_Strategy_Comparison`,
+        operation: 'lineup_optimization',
+        week: week
+      });
+      
+      realAnalysisResults.seasonal = {
+        abTest: abTest
+      };
+      
+      result.intelligence_summary.seasonal_insights = 1; // One A/B test
       console.log('✅ Seasonal intelligence complete');
     }
 
-    // Generate comprehensive insights summary
-    const insights = await generateIntelligenceSummary(mode, week);
+    // Generate comprehensive insights summary using real analysis results
+    const insights = await generateIntelligenceSummary(mode, week, realAnalysisResults);
     result.key_insights = insights.key_insights;
     result.urgent_actions = insights.urgent_actions;
     result.performance_grade = insights.performance_grade;
@@ -121,22 +222,95 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
 }
 
 /**
- * Generate comprehensive intelligence summary
+ * Generate comprehensive intelligence summary using real analysis results
  */
-async function generateIntelligenceSummary(mode: string, week: number): Promise<{
+async function generateIntelligenceSummary(mode: string, week: number, realResults: any): Promise<{
   key_insights: string[];
   urgent_actions: string[];
   performance_grade: string;
   next_actions: string[];
 }> {
-  // Generate contextual insights based on current week and mode
+  let key_insights: string[] = [];
+  let urgent_actions: string[] = [];
+  let next_actions: string[] = [];
+
+  // Extract insights from real ESPN/LLM analysis results
+  if (realResults.leagues) {
+    for (const leagueResult of realResults.leagues) {
+      const leagueName = leagueResult.league;
+      const analysis = leagueResult.analysis;
+      
+      if (analysis?.summary?.keyInsights) {
+        // Add league-specific insights
+        analysis.summary.keyInsights.forEach((insight: string) => {
+          key_insights.push(`${leagueName}: ${insight}`);
+        });
+      }
+      
+      if (analysis?.recommendations) {
+        // Extract urgent actions from recommendations
+        analysis.recommendations.forEach((rec: any) => {
+          if (rec.urgent || rec.priority === 'high') {
+            urgent_actions.push(`${leagueName}: ${rec.action || rec.recommendation}`);
+          }
+        });
+      }
+    }
+  }
+
+  // Add learning insights if available
+  if (realResults.learning?.insights) {
+    const learningInsights = realResults.learning.insights;
+    if (learningInsights.recommendations) {
+      learningInsights.recommendations.forEach((rec: string) => {
+        key_insights.push(`Learning: ${rec}`);
+      });
+    }
+  }
+
+  // Add cost optimization insights
+  if (realResults.analytics?.costs?.recommendations) {
+    realResults.analytics.costs.recommendations.forEach((rec: string) => {
+      next_actions.push(`Cost optimization: ${rec}`);
+    });
+  }
+
+  // Add A/B test insights
+  if (realResults.seasonal?.abTest?.recommendation) {
+    key_insights.push(`A/B Testing: ${realResults.seasonal.abTest.recommendation}`);
+  }
+
+  // Ensure we have at least some insights
+  if (key_insights.length === 0) {
+    console.warn('⚠️ No real analysis insights generated, falling back to contextual advice');
+    return generateContextualInsights(week);
+  }
+
+  const insights = {
+    key_insights: key_insights.slice(0, 5), // Limit for Discord formatting
+    urgent_actions: urgent_actions.slice(0, 3), // Limit for Discord formatting
+    performance_grade: calculatePerformanceGrade(mode, realResults),
+    next_actions: next_actions.slice(0, 4) // Limit for Discord formatting
+  };
+
+  return insights;
+}
+
+/**
+ * Generate contextual insights as fallback when real analysis fails
+ */
+function generateContextualInsights(week: number): {
+  key_insights: string[];
+  urgent_actions: string[];
+  performance_grade: string;
+  next_actions: string[];
+} {
   const currentDate = new Date();
   const isEarlySeason = week <= 4;
   const isMidSeason = week >= 5 && week <= 10;
   const isLateSeason = week >= 11 && week <= 14;
   const isPlayoffs = week >= 15;
   
-  // Generate phase-specific insights
   let key_insights: string[] = [];
   let urgent_actions: string[] = [];
   let next_actions: string[] = [];
@@ -214,7 +388,7 @@ async function generateIntelligenceSummary(mode: string, week: number): Promise<
   const insights = {
     key_insights,
     urgent_actions: urgent_actions.slice(0, 3), // Limit to 3 for Discord formatting
-    performance_grade: calculatePerformanceGrade(mode),
+    performance_grade: calculatePerformanceGrade('fallback'),
     next_actions: next_actions.slice(0, 4) // Limit to 4 for Discord formatting
   };
 
@@ -222,14 +396,39 @@ async function generateIntelligenceSummary(mode: string, week: number): Promise<
 }
 
 /**
- * Calculate current performance grade based on intelligence analysis
+ * Calculate current performance grade based on real intelligence analysis
  */
-function calculatePerformanceGrade(mode: string): string {
-  // Placeholder logic - in full implementation would analyze actual performance
-  const grades = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+'];
-  const baseIndex = mode === 'full' ? 0 : 2; // Full mode gets better grade
-  const randomOffset = Math.floor(Math.random() * 3);
-  return grades[Math.min(baseIndex + randomOffset, grades.length - 1)];
+function calculatePerformanceGrade(mode: string, realResults?: any): string {
+  let grade = 'B'; // Default grade
+  
+  // Improve grade based on successful real analysis
+  if (realResults?.leagues?.length > 0) {
+    grade = 'B+'; // Successfully analyzed leagues
+    
+    // Check for high confidence recommendations
+    const hasHighConfidence = realResults.leagues.some((league: any) => 
+      league.analysis?.summary?.confidence > 80
+    );
+    if (hasHighConfidence) grade = 'A-';
+    
+    // Check for comprehensive insights
+    const hasComprehensiveInsights = realResults.leagues.some((league: any) => 
+      league.analysis?.summary?.keyInsights?.length > 2
+    );
+    if (hasComprehensiveInsights) grade = 'A';
+  }
+  
+  // Bonus for learning and analytics
+  if (realResults?.learning?.metrics?.accuracy > 0.75) {
+    grade = grade === 'A' ? 'A+' : 'A';
+  }
+  
+  // Full mode gets slight bonus
+  if (mode === 'full' && grade === 'B') {
+    grade = 'B+';
+  }
+  
+  return grade;
 }
 
 /**
@@ -290,8 +489,31 @@ export async function runEmergencyIntelligence(): Promise<void> {
   console.log('🚨 EMERGENCY INTELLIGENCE ACTIVATED');
   console.log('⚡ Processing real-time events with highest priority...');
   
-  // Run only real-time intelligence for immediate response
-  await runRealTimeMonitoring();
+  const config = loadProductionConfig();
+  const week = getCurrentWeek();
+  
+  // Run emergency analysis for all leagues
+  const emergencyAnalysis = await executeAIWorkflow({
+    task: 'emergency_analysis',
+    leagues: config.leagues.map(league => ({
+      leagueId: league.id,
+      teamId: league.teamId,
+      name: league.name
+    })),
+    week: week,
+    prompt: `EMERGENCY: Breaking fantasy news detected. Analyze my rosters across all leagues for immediate action needed.
+    
+    This is an URGENT request requiring:
+    1. Immediate lineup changes if any starters are affected
+    2. Emergency waiver claims if backup options are needed
+    3. Critical trade opportunities that are time-sensitive
+    4. Risk assessment for upcoming games
+    
+    Focus on actionable decisions that need immediate attention. Use specific player names and reasoning.`
+  });
+  
+  // Save emergency results
+  writeFileSync('urgent_decisions.json', JSON.stringify(emergencyAnalysis, null, 2));
   
   console.log('✅ Emergency intelligence complete - check urgent_decisions.json for actions');
 }

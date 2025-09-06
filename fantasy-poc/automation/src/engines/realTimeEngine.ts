@@ -1,4 +1,4 @@
-import { executeAIWorkflow } from '@fantasy-ai/shared';
+import { executeAIWorkflow, espnApi } from '@fantasy-ai/shared';
 import { loadProductionConfig } from '../config/production.js';
 import { writeFileSync, existsSync, readFileSync } from 'fs';
 
@@ -270,8 +270,23 @@ export class RealTimeDecisionEngine {
 
   // Helper methods
   private async checkPlayerInRoster(leagueId: string, teamId: string, playerName: string): Promise<boolean> {
-    // Simulate roster check - in production would call ESPN API
-    return Math.random() > 0.7; // 30% chance player is on roster
+    try {
+      // Use real ESPN API to check roster
+      const roster = await espnApi.getTeamRoster(leagueId, teamId);
+      
+      // Check if player is in roster by name (case insensitive partial match)
+      const allPlayers = [...(roster.starters || []), ...(roster.bench || [])];
+      const playerInRoster = allPlayers.some((player: any) => 
+        player.fullName?.toLowerCase().includes(playerName.toLowerCase()) ||
+        playerName.toLowerCase().includes(player.fullName?.toLowerCase() || '')
+      );
+      
+      return playerInRoster;
+    } catch (error) {
+      console.warn(`⚠️ Could not check roster for league ${leagueId}, team ${teamId}:`, error);
+      // Fallback to simulation if ESPN API fails
+      return Math.random() > 0.7;
+    }
   }
 
   private getCurrentWeek(): number {

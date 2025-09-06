@@ -1,39 +1,38 @@
 {
-  "mode": "test",
-  "week": 5,
-  "execution_time": "2025-09-05T22:06:35.715Z",
+  "mode": "full",
+  "week": 7,
+  "execution_time": "2025-09-05T23:34:23.460Z",
   "intelligence_summary": {
-    "realtime_events": 0,
-    "patterns_learned": 0,
-    "analytics_generated": false,
-    "seasonal_insights": 0,
-    "processing_time": 0
+    "realtime_events": 3,
+    "patterns_learned": 5,
+    "analytics_generated": true,
+    "seasonal_insights": 8,
+    "processing_time": 3
   },
   "insights": {
     "intelligence_summary": {
-      "realtime_events": 0,
-      "patterns_learned": 0,
-      "analytics_generated": false,
-      "seasonal_insights": 0,
-      "processing_time": 0
+      "realtime_events": 3,
+      "patterns_learned": 5,
+      "analytics_generated": true,
+      "seasonal_insights": 8,
+      "processing_time": 3
     },
     "key_insights": [
-      "Week 5 analysis: 5 breakout candidates identified with 85%+ confidence",
-      "Cross-league coordination reveals optimal FAAB allocation strategy",
-      "Historical patterns suggest current phase favors RB consolidation over WR depth",
-      "Real-time monitoring detected 3 injury concerns requiring immediate roster adjustments"
+      "Week 7 analysis: Mid-season patterns stabilizing, focus on consistency plays",
+      "Trade deadline approaching - evaluate roster construction for playoff push",
+      "Bye week impacts intensify weeks 7-9",
+      "Playoff probability models favor teams securing wins now"
     ],
     "urgent_actions": [
-      "Consider pivoting lineup due to weather forecast changes",
-      "Target emerging waiver candidates before league catches on",
-      "Evaluate trade opportunities based on playoff schedule analysis"
+      "Execute strategic trades before deadline approaches",
+      "Address bye week vulnerabilities in starting lineup",
+      "Target players with favorable late-season schedules"
     ],
-    "performance_grade": "A-",
+    "performance_grade": "A+",
     "next_actions": [
-      "Monitor Thursday injury reports for lineup adjustments",
-      "Prepare contingency plans for identified bust risks",
-      "Execute strategic trades before league recognizes value shifts",
-      "Optimize FAAB bidding based on cross-league analysis"
+      "Analyze remaining strength of schedule for all roster players",
+      "Identify playoff-bound teams for potential waiver coordination",
+      "Prepare contingency plans for key player injuries"
     ]
   },
   "metadata": {
