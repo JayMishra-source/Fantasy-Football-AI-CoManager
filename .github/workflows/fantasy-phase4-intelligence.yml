@@ -413,8 +413,8 @@ jobs:
             if [[ -n "$ERROR_MSG" ]]; then
               # Handle error format
               INSIGHTS="🚨 System Error: $ERROR_MSG"
-              URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.urgent_actions[0:2][]?' 2>/dev/null | head -2)
-              NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.next_actions[0:2][]?' 2>/dev/null | head -2)
+              URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.urgent_actions[]?' 2>/dev/null)
+              NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.next_actions[]?' 2>/dev/null)
               GRADE=$(cat "$RESULTS_FILE" | jq -r '.performance_grade' 2>/dev/null || echo "F")
               
               # Extract data verification info for error context
@@ -435,9 +435,9 @@ jobs:
               fi
             else
               # Handle normal success format
-              INSIGHTS=$(cat "$RESULTS_FILE" | jq -r '.insights.key_insights[0:6][]? // .key_insights[0:6][]?' 2>/dev/null | head -6 || echo "Analysis complete")
-              URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.urgent_actions[0:2][]? // .urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
-              NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[0:2][]? // .next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
+              INSIGHTS=$(cat "$RESULTS_FILE" | jq -r '.insights.key_insights[]? // .key_insights[]?' 2>/dev/null || echo "Analysis complete")
+              URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.urgent_actions[]? // .urgent_actions[]?' 2>/dev/null || echo "")
+              NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[]? // .next_actions[]?' 2>/dev/null || echo "")
               GRADE=$(cat "$RESULTS_FILE" | jq -r '.insights.performance_grade // .performance_grade' 2>/dev/null || echo "N/A")
               
               # Extract data verification info for success case
