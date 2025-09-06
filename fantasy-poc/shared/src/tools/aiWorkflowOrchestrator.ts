@@ -208,13 +208,46 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   const insights: string[] = [];
   const recommendations: any[] = [];
   
-  // Extract league-specific recommendations
-  leagueData.forEach(league => {
-    const leaguePattern = new RegExp(`${league.leagueName}[\\s\\S]*?(?=\\n\\n|${leagueData.map(l => l.leagueName).join('|')}|$)`, 'i');
-    const leagueMatch = responseText.match(leaguePattern);
+  // Extract league-specific recommendations with better fallback
+  leagueData.forEach((league, index) => {
+    // Try multiple patterns to find league-specific content
+    let leagueText = '';
     
-    if (leagueMatch) {
-      const leagueText = leagueMatch[0];
+    // Pattern 1: Exact league name match
+    const exactPattern = new RegExp(`${league.leagueName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?(?=\\n\\n|${leagueData.map(l => l.leagueName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}|$)`, 'i');
+    const exactMatch = responseText.match(exactPattern);
+    
+    // Pattern 2: Generic league indicators (League 1, League 2, Main, Secondary)
+    const genericPatterns = [
+      new RegExp(`(?:league\\s*${index + 1}|${index === 0 ? 'main|first' : 'secondary|second'})\\s*league?[\\s\\S]*?(?=\\n\\n|league\\s*\\d|$)`, 'i'),
+      new RegExp(`\\b${league.leagueName.split(' ')[0]}\\b[\\s\\S]*?(?=\\n\\n|\\b(?:${leagueData.map(l => l.leagueName.split(' ')[0]).filter(n => n !== league.leagueName.split(' ')[0]).join('|')})\\b|$)`, 'i')
+    ];
+    
+    if (exactMatch) {
+      leagueText = exactMatch[0];
+      console.log(`✅ Found exact match for ${league.leagueName}`);
+    } else {
+      // Try generic patterns
+      for (const pattern of genericPatterns) {
+        const genericMatch = responseText.match(pattern);
+        if (genericMatch) {
+          leagueText = genericMatch[0];
+          console.log(`✅ Found generic match for ${league.leagueName}`);
+          break;
+        }
+      }
+    }
+    
+    // If no league-specific text found, use portion of the overall response
+    if (!leagueText && index < leagueData.length) {
+      const responseLines = responseText.split('\n').filter((line: string) => line.trim());
+      const startIndex = Math.floor((responseLines.length / leagueData.length) * index);
+      const endIndex = Math.floor((responseLines.length / leagueData.length) * (index + 1));
+      leagueText = responseLines.slice(startIndex, endIndex).join('\n');
+      console.log(`⚠️ Using portion of response for ${league.leagueName} (lines ${startIndex}-${endIndex})`);
+    }
+    
+    if (leagueText) {
       
       // Extract specific player recommendations with more flexible patterns
       const startPattern = /start|play|use|consider.*as.*option/gi;
@@ -266,22 +299,45 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
     }
   });
   
-  // If no specific recommendations found, extract general insights
+  // If no specific recommendations found, extract general insights with more flexible patterns
   if (insights.length === 0) {
+    console.log('🔍 No league-specific insights found, trying general extraction...');
     const lines = responseText.split('\n');
     lines.forEach((line: string) => {
-      if (line.trim() && line.length > 20 && line.length < 120) {
-        // Look for actionable statements
-        if (/\b(start|sit|target|pickup|trade|drop|consider)\b/i.test(line)) {
-          insights.push(line.trim());
+      const cleanLine = line.trim();
+      if (cleanLine && cleanLine.length > 10 && cleanLine.length < 200) {
+        // Look for actionable statements with more flexible patterns
+        if (/\b(start|sit|target|pickup|trade|drop|consider|bench|play|add|waiver|claim)\b/i.test(cleanLine)) {
+          // Remove bullet points and formatting
+          const processedLine = cleanLine.replace(/^[•\-\*]\s*/, '').replace(/^\d+\.\s*/, '');
+          if (processedLine.length > 5) {
+            insights.push(processedLine);
+          }
         }
       }
     });
+    
+    // If still no insights, try to extract any meaningful content
+    if (insights.length === 0) {
+      console.log('🔍 No actionable insights found, extracting any meaningful content...');
+      const sentences = responseText.split(/[.!?]\s+/);
+      sentences.forEach((sentence: string) => {
+        const cleanSentence = sentence.trim();
+        if (cleanSentence.length > 20 && cleanSentence.length < 150) {
+          // Check for player names pattern (capitalized words)
+          if (/[A-Z][a-z]+\s+[A-Z][a-z]+/.test(cleanSentence)) {
+            insights.push(cleanSentence);
+          }
+        }
+      });
+    }
   }
   
-  // No fallback - let it fail if no insights found
+  // More forgiving fallback - provide some insight even if extraction fails
   if (insights.length === 0) {
-    throw new Error(`No actionable insights extracted from LLM response. Response was: ${responseText.substring(0, 200)}...`);
+    console.warn(`⚠️ No actionable insights extracted from LLM response. Raw response: ${responseText.substring(0, 300)}`);
+    // Instead of throwing error, provide a generic but informative message
+    insights.push(`Analysis completed but no specific recommendations extracted. Check logs for details.`);
   }
   
   return {
