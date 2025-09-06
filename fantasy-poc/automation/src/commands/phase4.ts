@@ -1,6 +1,7 @@
 import { 
   executeAIWorkflow,
-  getMyRoster
+  getMyRoster,
+  espnApi
 } from '@fantasy-ai/shared';
 import { loadProductionConfig } from '../config/production.js';
 import { writeFileSync } from 'fs';
@@ -48,6 +49,21 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
 
   try {
     const config = loadProductionConfig();
+    
+    // Initialize ESPN API with cookies from config
+    console.log('🔑 Initializing ESPN API with cookies...');
+    if (config.espn.s2 && config.espn.swid) {
+      espnApi.setCookies({
+        espn_s2: config.espn.s2,
+        swid: config.espn.swid
+      });
+      console.log('✅ ESPN cookies initialized successfully');
+    } else {
+      console.warn('⚠️ ESPN cookies missing from config - API calls may fail');
+      console.warn(`ESPN_S2 length: ${config.espn.s2?.length || 0}`);
+      console.warn(`ESPN_SWID length: ${config.espn.swid?.length || 0}`);
+    }
+    
     let realAnalysisResults: any = {};
 
     // Execute comprehensive AI workflow for all configured leagues
@@ -384,6 +400,15 @@ export async function runEmergencyIntelligence(): Promise<void> {
   console.log('⚡ Processing real-time events with highest priority...');
   
   const config = loadProductionConfig();
+  
+  // Initialize ESPN API with cookies
+  if (config.espn.s2 && config.espn.swid) {
+    espnApi.setCookies({
+      espn_s2: config.espn.s2,
+      swid: config.espn.swid
+    });
+  }
+  
   const week = getCurrentWeek();
   
   // Run emergency analysis for all leagues
