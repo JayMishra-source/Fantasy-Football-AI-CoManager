@@ -17,12 +17,16 @@ export async function initializeEnvironment(): Promise<void> {
   console.log('✅ ESPN cookies configured');
   
   // Initialize LLM configuration
-  const llmInitialized = await llmConfig.initializeLLM();
-  if (!llmInitialized) {
-    throw new Error('Failed to initialize LLM provider. Check API keys in environment variables.');
+  try {
+    const llmInitialized = await llmConfig.initializeLLM();
+    if (!llmInitialized) {
+      console.warn('⚠️ LLM provider initialization failed - continuing without LLM');
+    } else {
+      console.log('✅ LLM provider initialized');
+    }
+  } catch (error: any) {
+    console.warn(`⚠️ LLM initialization error: ${error.message}`);
   }
-  
-  console.log('✅ LLM provider initialized');
   
   // Test ESPN connection with a simple API call
   try {

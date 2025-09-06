@@ -114,13 +114,16 @@ jobs:
           echo "current_week=$CURRENT_WEEK" >> $GITHUB_OUTPUT
           
           # Initialize environment and validate configuration
-          node dist/cli.js init
+          if node dist/cli.js init; then
+            echo "✅ Environment initialization successful"
+            SHOULD_RUN="true"
+          else
+            echo "❌ Environment initialization failed - will skip intelligence execution"
+            SHOULD_RUN="false"
+          fi
           
-          # Check if we should run based on schedule and conditions
-          SHOULD_RUN="true"
-          
-          # Skip emergency mode during off-season
-          if [[ "$INTEL_MODE" == "emergency" && $CURRENT_WEEK -lt 1 ]]; then
+          # Skip emergency mode during off-season (only if init was successful)
+          if [[ "$SHOULD_RUN" == "true" && "$INTEL_MODE" == "emergency" && $CURRENT_WEEK -lt 1 ]]; then
             echo "⏭️ Skipping emergency intelligence during off-season"
             SHOULD_RUN="false"
           fi
