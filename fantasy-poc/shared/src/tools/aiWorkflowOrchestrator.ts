@@ -55,11 +55,10 @@ BENCH: ${league.bench.map((p: any) => `${p.fullName} (${p.position})`).join(', '
 
 Based on these ACTUAL rosters, provide SPECIFIC recommendations with player names.`;
 
-    console.log('🧠 Generating analysis with LLM...');
+    console.log('🧠 Generating analysis with real LLM...');
     
-    // For now, use mock analysis while the LLM system is being integrated
-    // This will be replaced with real LLM calls once the shared library LLM config is fully implemented
-    const llmResponse = await generateMockAnalysis(enhancedPrompt, leagueData);
+    // Use real LLM for analysis
+    const llmResponse = await llmConfig.generateResponse(enhancedPrompt);
 
     // Extract specific insights from LLM response
     const insights = extractInsightsFromLLMResponse(llmResponse, leagueData);
@@ -76,7 +75,7 @@ Based on these ACTUAL rosters, provide SPECIFIC recommendations with player name
       summary: {
         keyInsights: insights.keyInsights,
         confidence: insights.confidence,
-        dataSourcesUsed: ['ESPN API', 'Real Roster Data', 'Mock LLM']
+        dataSourcesUsed: ['ESPN API', 'Real Roster Data', 'Real LLM Analysis']
       },
       recommendations: leagueData.map(league => ({
         leagueId: league.leagueId,
@@ -168,7 +167,7 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   confidence: number;
   analysis: string;
 } {
-  const responseText = llmResponse.text || llmResponse.content || JSON.stringify(llmResponse);
+  const responseText = llmResponse.content || llmResponse.text || JSON.stringify(llmResponse);
   
   const insights: string[] = [];
   const recommendations: any[] = [];
