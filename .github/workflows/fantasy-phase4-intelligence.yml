@@ -435,7 +435,7 @@ jobs:
               fi
             else
               # Handle normal success format
-              INSIGHTS=$(cat "$RESULTS_FILE" | jq -r '.insights.key_insights[0:3][]? // .key_insights[0:3][]?' 2>/dev/null | head -3 || echo "Analysis complete")
+              INSIGHTS=$(cat "$RESULTS_FILE" | jq -r '.insights.key_insights[0:6][]? // .key_insights[0:6][]?' 2>/dev/null | head -6 || echo "Analysis complete")
               URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.urgent_actions[0:2][]? // .urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
               NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[0:2][]? // .next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
               GRADE=$(cat "$RESULTS_FILE" | jq -r '.insights.performance_grade // .performance_grade' 2>/dev/null || echo "N/A")
