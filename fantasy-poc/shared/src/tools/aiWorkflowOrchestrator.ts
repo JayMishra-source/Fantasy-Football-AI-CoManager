@@ -36,17 +36,9 @@ export async function executeAIWorkflow(args: {
             bench: roster.bench || [],
             roster: roster
           };
-        } catch (error) {
-          console.warn(`⚠️ Failed to fetch data for ${league.name || league.leagueId}:`, error);
-          return {
-            leagueId: league.leagueId,
-            teamId: league.teamId,
-            leagueName: league.name || 'Unknown League',
-            teamName: 'My Team',
-            starters: [],
-            bench: [],
-            roster: { starters: [], bench: [], teamId: league.teamId }
-          };
+        } catch (error: any) {
+          console.error(`❌ ESPN API FAILED for ${league.name || league.leagueId}:`, error.message);
+          throw new Error(`ESPN API authentication failed for league ${league.leagueId}: ${error.message}`);
         }
       })
     );
@@ -139,23 +131,23 @@ async function generateMockAnalysis(prompt: string, leagueData: any[]): Promise<
       
       if (starters.length > 2) {
         const randomStarter = starters[Math.floor(Math.random() * starters.length)];
-        recommendations.push(`${league.leagueName}: Start ${randomStarter.fullName} this week for favorable matchup advantage`);
+        recommendations.push(`Start ${randomStarter.fullName} this week for favorable matchup advantage`);
       }
       
       if (bench.length > 0) {
         const randomBench = bench[Math.floor(Math.random() * bench.length)];
-        recommendations.push(`${league.leagueName}: Consider ${randomBench.fullName} as flex option based on target share`);
+        recommendations.push(`Consider ${randomBench.fullName} as flex option based on target share`);
       }
       
       // Add more actionable recommendations that match extraction patterns
       if (starters.length > 4) {
         const anotherStarter = starters[Math.floor(Math.random() * starters.length)];
-        recommendations.push(`${league.leagueName}: Target ${anotherStarter.fullName} for increased workload this week`);
+        recommendations.push(`Target ${anotherStarter.fullName} for increased workload this week`);
       }
     } else {
-      // Even if no roster data, generate pattern-matching recommendations
-      recommendations.push(`${league.leagueName}: Start your top RB against weak run defense`);
-      recommendations.push(`${league.leagueName}: Target available WR on waivers with favorable schedule`);
+      // This should NOT happen if ESPN API is working correctly
+      console.error(`⚠️ Empty roster data for ${league.leagueName} - ESPN API authentication issue`);
+      throw new Error(`Empty roster returned for ${league.leagueName} - check ESPN_S2/SWID cookies and league/team IDs`);
     }
   });
   
@@ -199,7 +191,7 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
         const startMatch = leagueText.match(/(?:start|consider)\s+([^.]+?)(?:\s+(?:this week|as|for))/i);
         if (startMatch) {
           const playerName = startMatch[1].trim();
-          insights.push(`${league.leagueName}: Start ${playerName}`);
+          insights.push(`Start ${playerName}`);
           recommendations.push({
             league: league.leagueName,
             type: 'start',
