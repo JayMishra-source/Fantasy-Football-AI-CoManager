@@ -139,7 +139,7 @@ export class SystemMonitor {
       const perfData = await getPerformanceMetrics({});
       
       return {
-        successRate: parseFloat(perfData.metrics?.successRate?.replace('%', '') || '0'),
+        successRate: perfData.metrics?.successRate || 0,
         averageExecutionTime: 0, // Would be calculated from execution history
         lastSuccessfulRun: this.getLastSuccessfulCall('automation')
       };

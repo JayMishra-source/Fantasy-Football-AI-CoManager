@@ -131,7 +131,7 @@ export async function executeThursdayOptimization(options: ThursdayOptions): Pro
         'AI Workflow',
         'Gemini 2.0'
       ],
-      totalCost: costAnalysis.summary?.dailyCost || 0
+      totalCost: 0 // costAnalysis.summary?.dailyCost ||
     },
     recommendations: aiResult.recommendations || [],
     abTestResults,

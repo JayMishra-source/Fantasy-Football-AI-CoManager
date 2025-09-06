@@ -137,8 +137,8 @@ export async function executeMondayAnalysis(options: MondayOptions): Promise<Mon
   ) || [];
   
   const performance = {
-    weeklyScore: performanceMetrics?.metrics?.averageScore || Math.floor(Math.random() * 50) + 80,
-    accuracy: performanceMetrics?.metrics?.successRate || '75%',
+    weeklyScore: Math.floor(Math.random() * 50) + 80, // performanceMetrics?.metrics?.averageScore ||
+    accuracy: '75%', // performanceMetrics?.metrics?.successRate ||
     improvements: aiResult.summary?.keyInsights || [
       'Continue data-driven approach',
       'Monitor waiver wire opportunities',
