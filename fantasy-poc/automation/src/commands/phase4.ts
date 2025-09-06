@@ -116,17 +116,22 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
 
     // Execute comprehensive AI workflow for all configured leagues
     if (mode === 'full' || mode === 'realtime') {
-      console.log('⚡ Running real-time intelligence across all leagues...');
+      console.log(`⚡ Running real-time intelligence across ${config.leagues.length} configured leagues...`);
+      config.leagues.forEach((league, index) => {
+        console.log(`   ${index + 1}. ${league.name} (ID: ${league.id}, Team: ${league.teamId})`);
+      });
       
-      const leaguePromises = config.leagues.map(async (league) => {
-        console.log(`🏈 Analyzing ${league.name}...`);
+      const leaguePromises = config.leagues.map(async (league, index) => {
+        console.log(`🏈 [${index + 1}/${config.leagues.length}] Analyzing ${league.name}...`);
         
         try {
           // Get current roster
+          console.log(`   📋 Fetching roster for ${league.name} (League: ${league.id}, Team: ${league.teamId})`);
           const roster = await getMyRoster({ 
             leagueId: league.id, 
             teamId: league.teamId 
           });
+          console.log(`   ✅ Roster fetched for ${league.name}: ${roster.starters?.length || 0} starters, ${roster.bench?.length || 0} bench`);
           
           // Run comprehensive AI analysis
           const analysis = await executeAIWorkflow({
@@ -152,6 +157,11 @@ Please provide:
 
 Focus on actionable insights I can implement immediately. Use real player names and specific reasoning based on matchups, trends, and projections.`
           });
+
+          console.log(`   🧠 Analysis complete for ${league.name}: ${analysis.success ? 'SUCCESS' : 'FAILED'}`);
+          if (analysis.summary?.keyInsights) {
+            console.log(`   💡 Generated ${analysis.summary.keyInsights.length} insights for ${league.name}`);
+          }
 
           return {
             league: league.name,
@@ -183,7 +193,12 @@ Focus on actionable insights I can implement immediately. Use real player names 
       const leagueResults = await Promise.all(leaguePromises);
       realAnalysisResults.leagues = leagueResults;
       result.intelligence_summary.realtime_events = leagueResults.length;
-      console.log(`✅ Real-time analysis complete for ${leagueResults.length} leagues`);
+      
+      console.log(`✅ Real-time analysis complete for ${leagueResults.length} leagues:`);
+      leagueResults.forEach((result, index) => {
+        const status = result.analysis?.success !== false ? '✅ SUCCESS' : '❌ ERROR';
+        console.log(`   ${index + 1}. ${result.league}: ${status}`);
+      });
     }
 
     if (mode === 'full' || mode === 'learning') {
@@ -332,19 +347,31 @@ async function generateIntelligenceSummary(mode: string, week: number, realResul
 
   // Extract insights from real ESPN/LLM analysis results
   if (realResults.leagues) {
+    console.log(`🔍 Processing intelligence summary for ${realResults.leagues.length} leagues...`);
+    
     for (const leagueResult of realResults.leagues) {
       const leagueName = leagueResult.league;
       const analysis = leagueResult.analysis;
+      
+      console.log(`   📊 Processing ${leagueName}:`);
+      console.log(`      - Success: ${analysis?.success !== false}`);
+      console.log(`      - Has keyInsights: ${!!analysis?.summary?.keyInsights}`);
+      console.log(`      - KeyInsights count: ${analysis?.summary?.keyInsights?.length || 0}`);
+      console.log(`      - Has error: ${!!analysis?.error}`);
       
       // Handle both successful and error analysis results
       if (analysis?.summary?.keyInsights) {
         // Add league-specific insights
         analysis.summary.keyInsights.forEach((insight: string) => {
+          console.log(`      ✅ Adding insight: ${insight}`);
           key_insights.push(`${leagueName}: ${insight}`);
         });
       } else if (analysis?.error) {
         // Handle error case
+        console.log(`      ❌ Adding error: ${analysis.error}`);
         key_insights.push(`${leagueName}: Analysis failed: ${analysis.error}`);
+      } else {
+        console.log(`      ⚠️ No insights or error found for ${leagueName}`);
       }
       
       if (analysis?.recommendations) {
@@ -356,6 +383,8 @@ async function generateIntelligenceSummary(mode: string, week: number, realResul
         });
       }
     }
+  } else {
+    console.log('⚠️ No league results found in realResults');
   }
 
   // Add learning insights if available
