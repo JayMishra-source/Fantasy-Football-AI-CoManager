@@ -19,7 +19,13 @@ export async function executeAIWorkflow(args: {
         try {
           console.log(`📋 Fetching roster for ${league.name || league.leagueId}...`);
           const roster = await espnApi.getTeamRoster(league.leagueId, league.teamId);
+          console.log(`📊 Roster fetched - Starters: ${roster.starters?.length || 0}, Bench: ${roster.bench?.length || 0}`);
           const leagueInfo = await espnApi.getLeagueInfo(league.leagueId);
+          console.log(`🏈 League info: ${leagueInfo?.name || 'Unknown'}`);
+          
+          if (!roster.starters || roster.starters.length === 0) {
+            throw new Error(`Empty roster returned for league ${league.leagueId}, team ${league.teamId}`);
+          }
           
           return {
             leagueId: league.leagueId,
@@ -119,10 +125,13 @@ Based on these ACTUAL rosters, provide SPECIFIC recommendations with player name
  * Generate mock analysis based on real roster data
  */
 async function generateMockAnalysis(prompt: string, leagueData: any[]): Promise<any> {
+  console.log(`🤖 Generating mock analysis for ${leagueData.length} leagues...`);
+  
   // Generate realistic recommendations based on actual roster data
   const recommendations: string[] = [];
   
   leagueData.forEach(league => {
+    console.log(`🔍 Processing ${league.leagueName} - Starters: ${league.starters?.length}, Bench: ${league.bench?.length}`);
     if (league.starters.length > 0) {
       // Pick random starters/bench players for realistic recommendations
       const starters = league.starters;
@@ -235,11 +244,9 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
     });
   }
   
-  // Ensure we have at least some insights
+  // No fallback - let it fail if no insights found
   if (insights.length === 0) {
-    insights.push('Comprehensive analysis completed with real roster data');
-    insights.push('LLM analysis provided strategic recommendations');
-    insights.push('Check detailed response for specific insights');
+    throw new Error(`No actionable insights extracted from LLM response. Response was: ${responseText.substring(0, 200)}...`);
   }
   
   return {

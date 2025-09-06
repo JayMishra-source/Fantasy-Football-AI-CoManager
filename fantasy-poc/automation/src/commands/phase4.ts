@@ -280,10 +280,9 @@ async function generateIntelligenceSummary(mode: string, week: number, realResul
     key_insights.push(`A/B Testing: ${realResults.seasonal.abTest.recommendation}`);
   }
 
-  // Ensure we have at least some insights
+  // No fallback - let it fail if no real insights generated
   if (key_insights.length === 0) {
-    console.warn('⚠️ No real analysis insights generated, falling back to contextual advice');
-    return generateContextualInsights(week);
+    throw new Error('No real analysis insights generated. ESPN API or LLM analysis failed.');
   }
 
   const insights = {
