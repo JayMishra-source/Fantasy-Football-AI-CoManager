@@ -156,27 +156,49 @@ export class LLMConfigManager {
   async generateResponse(prompt: string): Promise<{ content: string; cost?: number }> {
     const manager = await this.getLLMManager();
     
-    // Since the LLM manager expects fantasy-specific structured data,
-    // we need to create a mock analysis request and extract the response
-    const response = await manager.analyzeFantasyData({
-      context: {
-        week: 1,
-        day_of_week: 'Monday', 
-        action_type: 'analysis',
-        priority: 'medium'
-      },
-      data: {
-        rosters: [],
-        injuries: [],
-        waiver_targets: [],
-        league_info: [{ custom_prompt: prompt }] // Pass the prompt as league info
+    // Use direct LLM provider chat for simple text generation
+    // This bypasses the complex fantasy analysis tools that might be causing issues
+    try {
+      const provider = manager.getCurrentProvider();
+      if (!provider) {
+        throw new Error('No LLM provider initialized');
       }
-    });
-    
-    return {
-      content: response.summary,
-      cost: response.cost_estimate?.estimated_cost
-    };
+      
+      const response = await provider.chat([
+        { role: 'user', content: prompt }
+      ], {
+        max_tokens: 1000,
+        temperature: 0.7
+      });
+      
+      return {
+        content: response.content || 'No response generated',
+        cost: response.usage?.total_tokens ? response.usage.total_tokens * 0.000001 : 0.001 // Rough estimate
+      };
+    } catch (directError: any) {
+      console.warn('Direct LLM call failed, trying fantasy analysis method:', directError.message);
+      
+      // Fallback to fantasy analysis method
+      const response = await manager.analyzeFantasyData({
+        context: {
+          week: 1,
+          day_of_week: 'Monday', 
+          action_type: 'analysis',
+          priority: 'medium'
+        },
+        data: {
+          rosters: [],
+          injuries: [],
+          waiver_targets: [],
+          league_info: [{ custom_prompt: prompt }]
+        }
+      });
+      
+      return {
+        content: response.summary || 'Analysis completed',
+        cost: response.cost_estimate?.estimated_cost
+      };
+    }
   }
 
   async switchProvider(provider: 'gemini' | 'claude' | 'openai' | 'perplexity'): Promise<boolean> {

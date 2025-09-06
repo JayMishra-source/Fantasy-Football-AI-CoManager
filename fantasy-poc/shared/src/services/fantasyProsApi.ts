@@ -44,6 +44,13 @@ export class FantasyProsApiService {
     });
   }
 
+  /**
+   * Check if the service is authenticated
+   */
+  getAuthenticationStatus(): boolean {
+    return this.isAuthenticated;
+  }
+
   async authenticate(email: string, password: string): Promise<boolean> {
     try {
       // Get login page to extract CSRF token

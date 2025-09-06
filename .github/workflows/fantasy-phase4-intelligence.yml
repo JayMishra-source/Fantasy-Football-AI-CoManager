@@ -192,7 +192,6 @@ jobs:
           LEAGUE_1_NAME: ${{ secrets.LEAGUE_1_NAME || 'Main League' }}
           LEAGUE_2_ID: ${{ secrets.LEAGUE_2_ID }}
           LEAGUE_2_TEAM_ID: ${{ secrets.LEAGUE_2_TEAM_ID }}
-          LEAGUE_2_NAME: ${{ secrets.LEAGUE_2_NAME || 'Secondary League' }}
           
           # LLM Configuration
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -200,6 +199,14 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
           PRIMARY_LLM_PROVIDER: ${{ vars.PRIMARY_LLM_PROVIDER || 'gemini' }}
+          
+          # FantasyPros Configuration (Optional)
+          FANTASYPROS_SESSION_ID: ${{ secrets.FANTASYPROS_SESSION_ID }}
+          FANTASYPROS_EMAIL: ${{ secrets.FANTASYPROS_EMAIL }}
+          FANTASYPROS_PASSWORD: ${{ secrets.FANTASYPROS_PASSWORD }}
+          LEAGUE_2_NAME: ${{ secrets.LEAGUE_2_NAME || 'Secondary League' }}
+          
+          # Additional LLM Configuration
           FALLBACK_LLM_PROVIDER: ${{ vars.FALLBACK_LLM_PROVIDER || 'claude' }}
           
           # Cost Limits

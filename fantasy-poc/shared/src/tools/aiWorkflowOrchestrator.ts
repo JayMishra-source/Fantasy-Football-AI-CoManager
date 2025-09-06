@@ -1,4 +1,5 @@
 import { espnApi } from '../services/espnApi.js';
+import { fantasyProsApi } from '../services/fantasyProsApi.js';
 import { llmConfig } from '../config/llm-config.js';
 
 export async function executeAIWorkflow(args: {
@@ -13,6 +14,30 @@ export async function executeAIWorkflow(args: {
   console.log(`🤖 Executing AI workflow: ${task} for week ${week} with ${leagues.length} leagues`);
   
   try {
+    // Fetch FantasyPros expert consensus data for enhanced analysis
+    console.log('📊 Fetching FantasyPros expert consensus data...');
+    let expertRankings: any = null;
+    try {
+      // Check if FantasyPros is configured and available
+      const isAuthenticated = fantasyProsApi.getAuthenticationStatus();
+      if (isAuthenticated) {
+        console.log('✅ FantasyPros authenticated - fetching expert rankings');
+        expertRankings = {
+          qb: await fantasyProsApi.getRankings('QB'),
+          rb: await fantasyProsApi.getRankings('RB'),
+          wr: await fantasyProsApi.getRankings('WR'),
+          te: await fantasyProsApi.getRankings('TE'),
+          k: await fantasyProsApi.getRankings('K'),
+          dst: await fantasyProsApi.getRankings('DST')
+        };
+        console.log('📈 Expert rankings fetched successfully');
+      } else {
+        console.log('⚠️ FantasyPros not authenticated - continuing with ESPN data only');
+      }
+    } catch (fpError: any) {
+      console.warn('⚠️ FantasyPros data unavailable:', fpError.message);
+    }
+
     // Fetch real roster data for each league
     const leagueData = await Promise.all(
       leagues.map(async (league) => {
@@ -43,7 +68,15 @@ export async function executeAIWorkflow(args: {
       })
     );
 
-    // Create comprehensive prompt with real roster data
+    // Create comprehensive prompt with real roster data and expert rankings
+    const expertDataSection = expertRankings ? `
+EXPERT CONSENSUS RANKINGS (FantasyPros Week ${week}):
+${Object.entries(expertRankings).map(([position, rankings]: [string, any]) => `
+${position.toUpperCase()} RANKINGS: ${rankings.players?.slice(0, 10).map((p: any, i: number) => 
+  `${i+1}. ${p.player.name} (${p.player.team}) - Rank: ${p.rank}, Tier: ${p.tier}`
+).join(', ') || 'No rankings available'}
+`).join('\n')}` : '\n⚠️ FantasyPros expert rankings not available - using ESPN data only\n';
+
     const enhancedPrompt = `${prompt}
 
 CURRENT ROSTER DATA:
@@ -52,8 +85,9 @@ ${league.leagueName} (${league.teamName}):
 STARTERS: ${league.starters.map((p: any) => `${p.fullName} (${p.position})`).join(', ') || 'No starters found'}
 BENCH: ${league.bench.map((p: any) => `${p.fullName} (${p.position})`).join(', ') || 'No bench players found'}
 `).join('\n')}
+${expertDataSection}
 
-Based on these ACTUAL rosters, provide SPECIFIC recommendations with player names.`;
+Based on these ACTUAL rosters and EXPERT CONSENSUS RANKINGS, provide SPECIFIC recommendations with player names.`;
 
     console.log('🧠 Generating analysis with real LLM...');
     
@@ -75,7 +109,9 @@ Based on these ACTUAL rosters, provide SPECIFIC recommendations with player name
       summary: {
         keyInsights: insights.keyInsights,
         confidence: insights.confidence,
-        dataSourcesUsed: ['ESPN API', 'Real Roster Data', 'Real LLM Analysis']
+        dataSourcesUsed: expertRankings 
+          ? ['ESPN API', 'FantasyPros Expert Rankings', 'Real LLM Analysis']
+          : ['ESPN API', 'Real LLM Analysis (No FantasyPros)']
       },
       recommendations: leagueData.map(league => ({
         leagueId: league.leagueId,

@@ -419,6 +419,13 @@ Be concise but thorough. This is time-sensitive fantasy advice.`;
     if (line.includes('QUESTIONABLE') || confidence >= 80) return 'high';
     if (confidence >= 70) return 'medium';
     return 'low';
+    }
+
+  /**
+   * Get current provider for direct access
+   */
+  getCurrentProvider(): LLMProvider | null {
+    return this.currentProvider;
   }
 }
 
