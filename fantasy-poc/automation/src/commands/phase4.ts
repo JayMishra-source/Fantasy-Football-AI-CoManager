@@ -1,7 +1,8 @@
 import { 
   executeAIWorkflow,
   getMyRoster,
-  espnApi
+  espnApi,
+  fantasyProsApi
 } from '@fantasy-ai/shared';
 import { loadProductionConfig } from '../config/production.js';
 import { writeFileSync } from 'fs';
@@ -62,6 +63,44 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
       console.warn('⚠️ ESPN cookies missing from config - API calls may fail');
       console.warn(`ESPN_S2 length: ${config.espn.s2?.length || 0}`);
       console.warn(`ESPN_SWID length: ${config.espn.swid?.length || 0}`);
+    }
+
+    // Initialize FantasyPros authentication if available
+    console.log('📊 Initializing FantasyPros authentication...');
+    const fantasyProsCreds = process.env.FANTASYPROS_SESSION_ID || process.env.FANTASYPROS_EMAIL;
+    if (process.env.FANTASYPROS_SESSION_ID) {
+      console.log('🔑 Using FantasyPros session authentication...');
+      try {
+        const success = await fantasyProsApi.authenticateWithSession(
+          process.env.FANTASYPROS_SESSION_ID,
+          process.env.FANTASYPROS_ADDITIONAL_COOKIES
+        );
+        if (success) {
+          console.log('✅ FantasyPros session authentication successful');
+        } else {
+          console.warn('⚠️ FantasyPros session authentication failed - continuing without expert rankings');
+        }
+      } catch (error: any) {
+        console.warn('⚠️ FantasyPros authentication error:', error.message);
+      }
+    } else if (process.env.FANTASYPROS_EMAIL && process.env.FANTASYPROS_PASSWORD) {
+      console.log('🔑 Using FantasyPros email/password authentication...');
+      try {
+        const success = await fantasyProsApi.authenticate(
+          process.env.FANTASYPROS_EMAIL,
+          process.env.FANTASYPROS_PASSWORD
+        );
+        if (success) {
+          console.log('✅ FantasyPros email authentication successful');
+        } else {
+          console.warn('⚠️ FantasyPros email authentication failed - continuing without expert rankings');
+        }
+      } catch (error: any) {
+        console.warn('⚠️ FantasyPros authentication error:', error.message);
+      }
+    } else {
+      console.log('ℹ️ FantasyPros credentials not configured - continuing with ESPN data only');
+      console.log('   Set FANTASYPROS_SESSION_ID or FANTASYPROS_EMAIL/FANTASYPROS_PASSWORD for expert rankings');
     }
     
     let realAnalysisResults: any = {};
@@ -407,6 +446,15 @@ export async function runEmergencyIntelligence(): Promise<void> {
       espn_s2: config.espn.s2,
       swid: config.espn.swid
     });
+  }
+  
+  // Initialize FantasyPros if available
+  if (process.env.FANTASYPROS_SESSION_ID) {
+    try {
+      await fantasyProsApi.authenticateWithSession(process.env.FANTASYPROS_SESSION_ID);
+    } catch (error) {
+      console.warn('Emergency: FantasyPros authentication failed');
+    }
   }
   
   const week = getCurrentWeek();
