@@ -390,11 +390,12 @@ jobs:
             COLOR="16776960"  # Yellow
           fi
           
-          # Extract key insights if available
+          # Extract key insights and data verification info if available
           INSIGHTS=""
           URGENT_ACTIONS=""
           NEXT_ACTIONS=""
           GRADE=""
+          DATA_VERIFICATION=""
           
           # Check multiple possible locations for the results file
           RESULTS_FILE=""
@@ -417,6 +418,13 @@ jobs:
               NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.next_actions[0:2][]?' 2>/dev/null | head -2)
               GRADE=$(cat "$RESULTS_FILE" | jq -r '.performance_grade' 2>/dev/null || echo "F")
               
+              # Extract data verification info for error context
+              ESPN_AUTH=$(cat "$RESULTS_FILE" | jq -r '.data_verification.espn_authenticated // false' 2>/dev/null)
+              FANTASYPROS_AUTH=$(cat "$RESULTS_FILE" | jq -r '.data_verification.fantasypros_authenticated // false' 2>/dev/null)
+              LLM_PROVIDER=$(cat "$RESULTS_FILE" | jq -r '.data_verification.llm_provider // "Unknown"' 2>/dev/null)
+              LLM_MODEL=$(cat "$RESULTS_FILE" | jq -r '.data_verification.llm_model // "Unknown"' 2>/dev/null)
+              LLM_INIT=$(cat "$RESULTS_FILE" | jq -r '.data_verification.llm_initialized // false' 2>/dev/null)
+              
               # Add error context if available
               ERROR_TYPE=$(cat "$RESULTS_FILE" | jq -r '.error_context.error_type // empty' 2>/dev/null)
               POSSIBLE_CAUSES=$(cat "$RESULTS_FILE" | jq -r '.error_context.possible_causes[]? // empty' 2>/dev/null)
@@ -432,7 +440,32 @@ jobs:
               URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.urgent_actions[0:2][]? // .urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
               NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[0:2][]? // .next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
               GRADE=$(cat "$RESULTS_FILE" | jq -r '.insights.performance_grade // .performance_grade' 2>/dev/null || echo "N/A")
+              
+              # Extract data verification info for success case
+              ESPN_AUTH=$(cat "$RESULTS_FILE" | jq -r '.data_verification.espn_authenticated // false' 2>/dev/null)
+              FANTASYPROS_AUTH=$(cat "$RESULTS_FILE" | jq -r '.data_verification.fantasypros_authenticated // false' 2>/dev/null)
+              LLM_PROVIDER=$(cat "$RESULTS_FILE" | jq -r '.data_verification.llm_provider // "Unknown"' 2>/dev/null)
+              LLM_MODEL=$(cat "$RESULTS_FILE" | jq -r '.data_verification.llm_model // "Unknown"' 2>/dev/null)
+              LLM_INIT=$(cat "$RESULTS_FILE" | jq -r '.data_verification.llm_initialized // false' 2>/dev/null)
             fi
+            
+            # Build data verification status
+            ESPN_STATUS="❌"
+            if [[ "$ESPN_AUTH" == "true" ]]; then
+              ESPN_STATUS="✅"
+            fi
+            
+            FANTASYPROS_STATUS="❌" 
+            if [[ "$FANTASYPROS_AUTH" == "true" ]]; then
+              FANTASYPROS_STATUS="✅"
+            fi
+            
+            LLM_STATUS="❌"
+            if [[ "$LLM_INIT" == "true" ]]; then
+              LLM_STATUS="✅"
+            fi
+            
+            DATA_VERIFICATION="**Data Sources:**"$'\n'"$ESPN_STATUS ESPN Fantasy API"$'\n'"$FANTASYPROS_STATUS FantasyPros Expert Rankings"$'\n'"$LLM_STATUS $LLM_PROVIDER ($LLM_MODEL)"
           else
             echo "⚠️ No results file found in expected locations"
           fi
@@ -463,6 +496,11 @@ jobs:
             while IFS= read -r line; do
               DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
             done <<< "$NEXT_ACTIONS"
+          fi
+          
+          # Add data verification section
+          if [[ -n "$DATA_VERIFICATION" ]]; then
+            DESCRIPTION="$DESCRIPTION"$'\n\n'"$DATA_VERIFICATION"
           fi
           
           # Send Discord notification using jq for proper JSON formatting

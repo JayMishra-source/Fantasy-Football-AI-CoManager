@@ -181,13 +181,26 @@ Focus on actionable insights I can implement immediately. Use real player names 
     // Calculate processing time
     result.intelligence_summary.processing_time = Date.now() - startTime;
 
-    // Save comprehensive results
+    // Get LLM provider info for verification
+    const { llmConfig } = await import('@fantasy-ai/shared');
+    const llmInfo = llmConfig.getCurrentInfo();
+    
+    // Save comprehensive results with data source verification
     const detailedResults = {
       mode,
       week,
       execution_time: new Date().toISOString(),
       intelligence_summary: result.intelligence_summary,
       insights: result,
+      data_verification: {
+        espn_authenticated: config.espn.s2 && config.espn.swid ? true : false,
+        espn_data_source: 'ESPN Fantasy API',
+        fantasypros_authenticated: process.env.FANTASYPROS_SESSION_ID || process.env.FANTASYPROS_EMAIL ? true : false,
+        fantasypros_data_source: 'FantasyPros Expert Rankings',
+        llm_provider: llmInfo.provider || 'Unknown',
+        llm_model: llmInfo.model || 'Unknown',
+        llm_initialized: llmInfo.initialized || false
+      },
       metadata: {
         phase: 'Phase 4 - Advanced Intelligence',
         capabilities: [
@@ -210,7 +223,19 @@ Focus on actionable insights I can implement immediately. Use real player names 
     console.error('❌ Phase 4 Intelligence failed:', error.message);
     console.error('Full error details:', error.stack || error);
     
-    // Create detailed error for Discord notification
+    // Load config for error context
+    const config = loadProductionConfig();
+    
+    // Get LLM info for error context
+    let llmInfo = { provider: 'Unknown', model: 'Unknown', initialized: false };
+    try {
+      const { llmConfig } = await import('@fantasy-ai/shared');
+      llmInfo = llmConfig.getCurrentInfo();
+    } catch (e) {
+      console.warn('Could not get LLM info for error context');
+    }
+    
+    // Create detailed error for Discord notification  
     const errorDetails = {
       success: false,
       error: error.message,
@@ -231,6 +256,15 @@ Focus on actionable insights I can implement immediately. Use real player names 
         'Test ESPN API access manually'
       ],
       timestamp: new Date().toISOString(),
+      data_verification: {
+        espn_authenticated: config.espn?.s2 && config.espn?.swid ? true : false,
+        espn_data_source: 'ESPN Fantasy API',
+        fantasypros_authenticated: process.env.FANTASYPROS_SESSION_ID || process.env.FANTASYPROS_EMAIL ? true : false,
+        fantasypros_data_source: 'FantasyPros Expert Rankings',
+        llm_provider: llmInfo.provider,
+        llm_model: llmInfo.model,
+        llm_initialized: llmInfo.initialized
+      },
       error_context: {
         mode,
         week,
