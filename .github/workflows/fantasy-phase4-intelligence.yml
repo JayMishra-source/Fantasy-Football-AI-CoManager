@@ -224,7 +224,6 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           
           # Advanced Intelligence Configuration
-          FANTASYPROS_SESSION_ID: ${{ secrets.FANTASYPROS_SESSION_ID }}
           OPENWEATHER_API_KEY: ${{ secrets.OPENWEATHER_API_KEY }}
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
         run: |
