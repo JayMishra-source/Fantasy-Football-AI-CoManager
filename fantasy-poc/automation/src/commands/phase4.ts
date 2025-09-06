@@ -153,6 +153,45 @@ Focus on actionable insights I can implement immediately. Use real player names 
 
   } catch (error: any) {
     console.error('❌ Phase 4 Intelligence failed:', error.message);
+    console.error('Full error details:', error.stack || error);
+    
+    // Create detailed error for Discord notification
+    const errorDetails = {
+      success: false,
+      error: error.message,
+      intelligence_summary: {
+        realtime_events: 0,
+        patterns_learned: 0,
+        analytics_generated: false,
+        seasonal_insights: 0,
+        processing_time: Date.now() - startTime
+      },
+      performance_grade: 'F',
+      key_insights: [],
+      urgent_actions: [`SYSTEM ERROR: ${error.message}`],
+      next_actions: [
+        'Check ESPN cookies (ESPN_S2/SWID) are current',
+        'Verify LLM API keys have sufficient quota',
+        'Review GitHub Actions logs for detailed error',
+        'Test ESPN API access manually'
+      ],
+      timestamp: new Date().toISOString(),
+      error_context: {
+        mode,
+        week,
+        leagues_configured: result?.intelligence_summary?.realtime_events || 0,
+        error_type: error.constructor.name,
+        possible_causes: error.message.includes('401') ? ['ESPN cookies expired', 'Authentication failed'] :
+                        error.message.includes('403') ? ['Access forbidden', 'Private league permissions'] :
+                        error.message.includes('404') ? ['League/team not found', 'Invalid IDs'] :
+                        error.message.includes('Network') ? ['Internet connectivity', 'ESPN servers down'] :
+                        ['Unknown error', 'Check logs for details']
+      }
+    };
+    
+    // Save error details for Discord notification
+    writeFileSync('phase4_results.json', JSON.stringify(errorDetails, null, 2));
+    
     throw error;
   }
 

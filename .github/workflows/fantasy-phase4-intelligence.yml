@@ -399,10 +399,33 @@ jobs:
           
           if [[ -n "$RESULTS_FILE" ]]; then
             echo "📄 Found results file: $RESULTS_FILE"
-            INSIGHTS=$(cat "$RESULTS_FILE" | jq -r '.insights.key_insights[0:3][]?' 2>/dev/null | head -3 || echo "Analysis complete")
-            URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
-            NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
-            GRADE=$(cat "$RESULTS_FILE" | jq -r '.insights.performance_grade' 2>/dev/null || echo "N/A")
+            
+            # Check if this is an error result
+            ERROR_MSG=$(cat "$RESULTS_FILE" | jq -r '.error // empty' 2>/dev/null)
+            
+            if [[ -n "$ERROR_MSG" ]]; then
+              # Handle error format
+              INSIGHTS="🚨 System Error: $ERROR_MSG"
+              URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.urgent_actions[0:2][]?' 2>/dev/null | head -2)
+              NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.next_actions[0:2][]?' 2>/dev/null | head -2)
+              GRADE=$(cat "$RESULTS_FILE" | jq -r '.performance_grade' 2>/dev/null || echo "F")
+              
+              # Add error context if available
+              ERROR_TYPE=$(cat "$RESULTS_FILE" | jq -r '.error_context.error_type // empty' 2>/dev/null)
+              POSSIBLE_CAUSES=$(cat "$RESULTS_FILE" | jq -r '.error_context.possible_causes[]? // empty' 2>/dev/null)
+              if [[ -n "$ERROR_TYPE" ]]; then
+                INSIGHTS="$INSIGHTS"$'\n'"**Error Type**: $ERROR_TYPE"
+              fi
+              if [[ -n "$POSSIBLE_CAUSES" ]]; then
+                INSIGHTS="$INSIGHTS"$'\n'"**Possible Causes**: $(echo "$POSSIBLE_CAUSES" | tr '\n' ', ' | sed 's/, $//')"
+              fi
+            else
+              # Handle normal success format
+              INSIGHTS=$(cat "$RESULTS_FILE" | jq -r '.insights.key_insights[0:3][]? // .key_insights[0:3][]?' 2>/dev/null | head -3 || echo "Analysis complete")
+              URGENT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.urgent_actions[0:2][]? // .urgent_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
+              NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[0:2][]? // .next_actions[0:2][]?' 2>/dev/null | head -2 || echo "")
+              GRADE=$(cat "$RESULTS_FILE" | jq -r '.insights.performance_grade // .performance_grade' 2>/dev/null || echo "N/A")
+            fi
           else
             echo "⚠️ No results file found in expected locations"
           fi

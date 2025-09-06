@@ -54,80 +54,95 @@ export class ESPNApiService {
       headers['Cookie'] = `espn_s2=${this.cookies.espn_s2}; SWID=${this.cookies.swid}`;
     }
     
-    const response = await axios.get(fullUrl, { headers });
-    
-    if (typeof response.data === 'string' && response.data.trim().startsWith('<')) {
-      throw new Error('ESPN API returned HTML instead of JSON - authentication required');
+    try {
+      const response = await axios.get(fullUrl, { headers });
+      
+      if (typeof response.data === 'string' && response.data.trim().startsWith('<')) {
+        throw new Error('ESPN API returned HTML instead of JSON - authentication required');
+      }
+      
+      return {
+        id: response.data.id,
+        name: response.data.settings?.name || 'Unknown League',
+        seasonId: response.data.seasonId,
+        currentWeek: response.data.scoringPeriodId || 1,
+        teams: response.data.teams || [],
+        settings: response.data.settings
+      };
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw new Error(`ESPN Authentication Failed (401): ESPN cookies (ESPN_S2/SWID) are invalid or expired. Please refresh cookies from https://fantasy.espn.com/`);
+      } else if (error.response?.status === 403) {
+        throw new Error(`ESPN Access Forbidden (403): You don't have permission to access league ${leagueId}. Check if league is private and requires authentication.`);
+      } else if (error.response?.status === 404) {
+        throw new Error(`ESPN League Not Found (404): League ${leagueId} doesn't exist or is not accessible.`);
+      } else if (error.response) {
+        throw new Error(`ESPN API Error (${error.response.status}): ${error.response.statusText || 'Unknown error'} - URL: ${fullUrl}`);
+      } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+        throw new Error(`ESPN Network Error: Cannot connect to ESPN servers. Check internet connection.`);
+      } else {
+        throw new Error(`ESPN API Request Failed: ${error.message} - League: ${leagueId}`);
+      }
     }
-    
-    return {
-      id: response.data.id,
-      name: response.data.settings?.name || 'Unknown League',
-      seasonId: response.data.seasonId,
-      currentWeek: response.data.scoringPeriodId || 1,
-      teams: response.data.teams || [],
-      settings: response.data.settings
-    };
   }
 
   async getTeamRoster(leagueId: string, teamId: string): Promise<TeamRoster> {
-    const response = await this.axios.get(
-      `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
-      { 
-        params: { 
-          view: 'mRoster'
-          // Remove scoringPeriodId: 0 to get current season data
-        } 
+    try {
+      const response = await this.axios.get(
+        `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
+        { 
+          params: { 
+            view: 'mRoster'
+            // Remove scoringPeriodId: 0 to get current season data
+          } 
+        }
+      );
+      
+      const team = response.data.teams?.find((t: any) => t.id === parseInt(teamId));
+      if (!team) {
+        throw new Error(`Team ${teamId} not found in league ${leagueId}. Available teams: ${response.data.teams?.map((t: any) => t.id).join(', ') || 'none'}`);
       }
-    );
-    
-    const team = response.data.teams?.find((t: any) => t.id === parseInt(teamId));
-    if (!team) {
-      throw new Error(`Team ${teamId} not found in league ${leagueId}`);
-    }
-
-    const roster = team.roster?.entries || [];
-    
-    const processPlayer = (entry: any): Player => {
-      const playerData = entry.playerPoolEntry?.player || {};
-      return {
-        id: playerData.id?.toString() || '',
-        firstName: playerData.firstName || '',
-        lastName: playerData.lastName || '',
-        fullName: playerData.fullName || '',
-        position: playerData.defaultPositionId ? this.getPositionName(playerData.defaultPositionId) : 'Unknown',
-        team: playerData.proTeamId ? this.getTeamAbbreviation(playerData.proTeamId) : 'FA',
-        points: entry.playerPoolEntry?.appliedStatTotal || 0,
-        projectedPoints: playerData.stats?.[0]?.appliedTotal || 0,
-        injuryStatus: playerData.injuryStatus || undefined,
-        percentStarted: playerData.ownership?.percentStarted || 0,
-        percentOwned: playerData.ownership?.percentOwned || 0
+      
+      const roster = team.roster?.entries || [];
+      
+      const processPlayer = (entry: any): Player => {
+        const playerData = entry.playerPoolEntry?.player || {};
+        return {
+          id: playerData.id?.toString() || '',
+          firstName: playerData.firstName || '',
+          lastName: playerData.lastName || '',
+          fullName: playerData.fullName || 'Unknown Player',
+          position: this.getPositionName(playerData.defaultPositionId || 0),
+          team: playerData.proTeamId ? this.getTeamAbbreviation(playerData.proTeamId) : 'FA',
+          points: playerData.stats?.[0]?.appliedTotal || 0,
+          projectedPoints: playerData.stats?.[1]?.appliedTotal || 0,
+          injuryStatus: playerData.injuryStatus || undefined,
+          percentStarted: playerData.ownership?.percentStarted || 0,
+          percentOwned: playerData.ownership?.percentOwned || 0
+        };
       };
-    };
 
-    const starters = roster
-      .filter((entry: any) => entry.lineupSlotId !== 20) // 20 is bench slot
-      .map(processPlayer);
-    
-    const bench = roster
-      .filter((entry: any) => entry.lineupSlotId === 20)
-      .map(processPlayer);
-
-    // Handle various ESPN team name formats
-    let teamName = team.name || '';
-    if (!teamName && team.location && team.nickname) {
-      teamName = `${team.location} ${team.nickname}`;
-    } else if (!teamName) {
-      teamName = `Team ${team.id}`;
+      return {
+        teamId: parseInt(teamId),
+        teamName: team.name || `Team ${teamId}`,
+        starters: roster.filter((entry: any) => entry.lineupSlotId !== 20).map(processPlayer),
+        bench: roster.filter((entry: any) => entry.lineupSlotId === 20).map(processPlayer)
+      };
+    } catch (error: any) {
+      if (error.message.includes('Team') && error.message.includes('not found')) {
+        throw error; // Re-throw team not found error as-is
+      } else if (error.response?.status === 401) {
+        throw new Error(`ESPN Authentication Failed (401): Cannot access roster for team ${teamId} in league ${leagueId}. ESPN cookies (ESPN_S2/SWID) are invalid or expired.`);
+      } else if (error.response?.status === 403) {
+        throw new Error(`ESPN Access Forbidden (403): No permission to view roster for team ${teamId} in league ${leagueId}.`);
+      } else if (error.response?.status === 404) {
+        throw new Error(`ESPN Resource Not Found (404): League ${leagueId} or team ${teamId} doesn't exist.`);
+      } else if (error.response) {
+        throw new Error(`ESPN Roster API Error (${error.response.status}): ${error.response.statusText || 'Unknown error'} - League: ${leagueId}, Team: ${teamId}`);
+      } else {
+        throw new Error(`ESPN Roster Request Failed: ${error.message} - League: ${leagueId}, Team: ${teamId}`);
+      }
     }
-    
-    return {
-      teamId: team.id,
-      teamName: teamName,
-      starters,
-      bench,
-      injuredReserve: []
-    };
   }
 
   async getPlayers(leagueId: string): Promise<Player[]> {
