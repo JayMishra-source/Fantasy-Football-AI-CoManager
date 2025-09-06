@@ -1,13 +1,6 @@
 import { 
   executeAIWorkflow,
-  getMyRoster,
-  analyzeCrossLeagueStrategy,
-  trainModel,
-  runABTest,
-  trackPerformance,
-  getPersonalizedInsights,
-  getPerformanceMetrics,
-  getCostAnalysis
+  getMyRoster
 } from '@fantasy-ai/shared';
 import { loadProductionConfig } from '../config/production.js';
 import { writeFileSync } from 'fs';
@@ -109,73 +102,18 @@ Focus on actionable insights I can implement immediately. Use real player names 
     }
 
     if (mode === 'full' || mode === 'learning') {
-      console.log('🧠 Running adaptive learning and performance tracking...');
-      
-      // Train model with recent data
-      const modelResult = await trainModel({ updateFrequency: 'weekly' });
-      
-      // Get performance metrics
-      const metrics = await getPerformanceMetrics({ 
-        timeframe: 'last_month',
-        includeComparison: true 
-      });
-      
-      // Get personalized insights based on historical performance
-      const insights = await getPersonalizedInsights({ 
-        analysisType: 'comprehensive',
-        includeRecommendations: true 
-      });
-      
-      realAnalysisResults.learning = {
-        model: modelResult,
-        metrics: metrics,
-        insights: insights
-      };
-      
-      result.intelligence_summary.patterns_learned = metrics?.metrics?.averageScore ? 1 : 0;
-      console.log('✅ Adaptive learning complete');
+      console.log('🧠 Skipping learning functions - not implemented in shared library');
+      result.intelligence_summary.patterns_learned = 0;
     }
 
     if (mode === 'full' || mode === 'analytics') {
-      console.log('📊 Generating advanced analytics and cost analysis...');
-      
-      // Get comprehensive cost analysis
-      const costAnalysis = await getCostAnalysis({ 
-        detailed: true,
-        includeOptimization: true 
-      });
-      
-      // Analyze cross-league strategy
-      const crossLeague = await analyzeCrossLeagueStrategy({ 
-        operation: 'weekly_coordination',
-        week: week 
-      });
-      
-      realAnalysisResults.analytics = {
-        costs: costAnalysis,
-        crossLeague: crossLeague
-      };
-      
-      result.intelligence_summary.analytics_generated = true;
-      console.log('✅ Analytics generation complete');
+      console.log('📊 Skipping analytics functions - not implemented in shared library');
+      result.intelligence_summary.analytics_generated = false;
     }
 
     if (mode === 'full' || mode === 'seasonal') {
-      console.log('🔮 Running A/B testing and seasonal optimization...');
-      
-      // Run A/B test for different strategies
-      const abTest = await runABTest({
-        testName: `Week_${week}_Strategy_Comparison`,
-        operation: 'lineup_optimization',
-        week: week
-      });
-      
-      realAnalysisResults.seasonal = {
-        abTest: abTest
-      };
-      
-      result.intelligence_summary.seasonal_insights = 1; // One A/B test
-      console.log('✅ Seasonal intelligence complete');
+      console.log('🔮 Skipping A/B testing functions - not implemented in shared library');
+      result.intelligence_summary.seasonal_insights = 0;
     }
 
     // Generate comprehensive insights summary using real analysis results
@@ -295,104 +233,7 @@ async function generateIntelligenceSummary(mode: string, week: number, realResul
   return insights;
 }
 
-/**
- * Generate contextual insights as fallback when real analysis fails
- */
-function generateContextualInsights(week: number): {
-  key_insights: string[];
-  urgent_actions: string[];
-  performance_grade: string;
-  next_actions: string[];
-} {
-  const currentDate = new Date();
-  const isEarlySeason = week <= 4;
-  const isMidSeason = week >= 5 && week <= 10;
-  const isLateSeason = week >= 11 && week <= 14;
-  const isPlayoffs = week >= 15;
-  
-  let key_insights: string[] = [];
-  let urgent_actions: string[] = [];
-  let next_actions: string[] = [];
-  
-  if (isEarlySeason) {
-    key_insights = [
-      `Week ${week} analysis: Early season trends emerging, focus on volume-based opportunities`,
-      `Waiver wire activity 3x higher than mid-season - target breakout candidates now`,
-      `Historical data shows ${week <= 2 ? 'extreme' : 'moderate'} overreactions to early performances`,
-      `Trade market most active during weeks 2-4 for roster building opportunities`
-    ];
-    urgent_actions = [
-      'Identify volume-based waiver targets before league catches on',
-      'Evaluate early-season overreactions for buy-low opportunities',
-      'Secure handcuff players while still available on waivers'
-    ];
-    next_actions = [
-      'Monitor snap count trends for emerging role changes',
-      'Track target share patterns for WR breakout identification',
-      'Analyze early-season injury replacement scenarios'
-    ];
-  } else if (isMidSeason) {
-    key_insights = [
-      `Week ${week} analysis: Mid-season patterns stabilizing, focus on consistency plays`,
-      `Trade deadline approaching - evaluate roster construction for playoff push`,
-      `Bye week impacts intensify weeks ${week}-${Math.min(week + 2, 14)}`,
-      `Playoff probability models favor teams securing wins now`
-    ];
-    urgent_actions = [
-      'Execute strategic trades before deadline approaches',
-      'Address bye week vulnerabilities in starting lineup',
-      'Target players with favorable late-season schedules'
-    ];
-    next_actions = [
-      'Analyze remaining strength of schedule for all roster players',
-      'Identify playoff-bound teams for potential waiver coordination',
-      'Prepare contingency plans for key player injuries'
-    ];
-  } else if (isLateSeason) {
-    key_insights = [
-      `Week ${week} analysis: Playoff preparation phase, prioritize ceiling over floor`,
-      `Teams out of playoff contention may rest key players`,
-      `Weather becomes significant factor for outdoor game performance`,
-      `Championship-level teams emerge through weeks 11-14 performance`
-    ];
-    urgent_actions = [
-      'Secure players with highest upside for playoff runs',
-      'Avoid players on teams likely to rest starters',
-      'Consider weather impacts for championship week planning'
-    ];
-    next_actions = [
-      'Finalize playoff roster construction decisions',
-      'Monitor team playoff clinching scenarios',
-      'Prepare for potential rest-day lineup changes'
-    ];
-  } else {
-    key_insights = [
-      `Week ${week} analysis: ${week === 15 ? 'Wild card' : week === 16 ? 'Divisional' : 'Championship'} playoff round - maximize ceiling plays`,
-      `Single-elimination format demands highest upside player selection`,
-      `Weather and game script become critical factors`,
-      `Championship teams historically favor ceiling over consistency`
-    ];
-    urgent_actions = [
-      'Start players with highest upside regardless of floor',
-      'Monitor weather forecasts for outdoor championship games',
-      'Consider game script implications for player usage'
-    ];
-    next_actions = [
-      week < 18 ? 'Prepare lineup for next playoff round' : 'Celebrate championship victory!',
-      'Review season performance for future improvements',
-      'Plan draft strategy based on season learnings'
-    ];
-  }
-
-  const insights = {
-    key_insights,
-    urgent_actions: urgent_actions.slice(0, 3), // Limit to 3 for Discord formatting
-    performance_grade: calculatePerformanceGrade('fallback'),
-    next_actions: next_actions.slice(0, 4) // Limit to 4 for Discord formatting
-  };
-
-  return insights;
-}
+// REMOVED - No more fallback contextual insights that hide real errors
 
 /**
  * Calculate current performance grade based on real intelligence analysis

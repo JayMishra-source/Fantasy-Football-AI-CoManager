@@ -1,29 +1,18 @@
-// Minimal LLM config for testing
 export class LLMConfigManager {
   async initializeLLM(): Promise<boolean> {
-    console.log('LLM initialized (test mode)');
-    return true;
+    throw new Error('LLM configuration not implemented in shared library. Use MCP server for LLM functionality.');
   }
 
   getCurrentInfo(): any {
-    return {
-      provider: 'gemini',
-      model: 'gemini-1.5-flash',
-      status: 'active'
-    };
+    throw new Error('LLM configuration not implemented in shared library. Use MCP server for LLM functionality.');
   }
 
   async testConfiguration(): Promise<{ success: boolean; response?: string; error?: string }> {
-    console.log('Testing LLM configuration (test mode)');
-    return { 
-      success: true, 
-      response: 'Test successful' 
-    };
+    throw new Error('LLM configuration not implemented in shared library. Use MCP server for LLM functionality.');
   }
 
   async switchProvider(config: any): Promise<boolean> {
-    console.log('Switching LLM provider (test mode):', config.provider);
-    return true;
+    throw new Error('LLM configuration not implemented in shared library. Use MCP server for LLM functionality.');
   }
 }
 
