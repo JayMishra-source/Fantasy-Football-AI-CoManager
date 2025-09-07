@@ -74,22 +74,49 @@ export async function executeAIWorkflow(args: {
     const expertDataSection = expertRankings ? `
 EXPERT CONSENSUS RANKINGS (FantasyPros Week ${week}):
 ${Object.entries(expertRankings).map(([position, rankings]: [string, any]) => `
-${position.toUpperCase()} RANKINGS: ${rankings.players?.slice(0, 10).map((p: any, i: number) => 
-  `${i+1}. ${p.player.name} (${p.player.team}) - Rank: ${p.rank}, Tier: ${p.tier}`
-).join(', ') || 'No rankings available'}
-`).join('\n')}` : '\n⚠️ FantasyPros expert rankings not available - using ESPN data only\n';
+${position.toUpperCase()} TOP 15 RANKINGS:
+${rankings.players?.slice(0, 15).map((p: any, i: number) => 
+  `${i+1}. ${p.player.name} (${p.player.team}) - Expert Rank: ${p.rank} | Tier: ${p.tier} | Consensus: ${p.expertConsensus || 'N/A'}% | Range: ${p.bestRank || 'N/A'}-${p.worstRank || 'N/A'}`
+).join('\n') || 'No rankings available'}
+
+`).join('\n')}
+
+FANTASY ANALYSIS GUIDELINES:
+• Lower Expert Rank = Better (1 is best)
+• Higher Expert Consensus % = More experts agree
+• Tier 1-2 = Elite players, Tier 3-4 = Good options, Tier 5+ = Risky
+• Smaller Rank Range (bestRank-worstRank) = More expert agreement
+• Compare your roster players against these expert rankings and tiers` : '\n⚠️ FantasyPros expert rankings not available - using ESPN data only\n';
 
     const enhancedPrompt = `${prompt}
 
 CURRENT ROSTER DATA:
 ${leagueData.map(league => `
 ${league.leagueName} (${league.teamName}):
-STARTERS: ${league.starters.map((p: any) => `${p.fullName} (${p.position})`).join(', ') || 'No starters found'}
-BENCH: ${league.bench.map((p: any) => `${p.fullName} (${p.position})`).join(', ') || 'No bench players found'}
+
+STARTERS:
+${league.starters.map((p: any) => 
+  `• ${p.fullName} (${p.position}) - Proj: ${p.projectedPoints?.toFixed(1) || 'N/A'} pts | Owned: ${p.percentOwned?.toFixed(1) || 'N/A'}% | Started: ${p.percentStarted?.toFixed(1) || 'N/A'}%`
+).join('\n') || 'No starters found'}
+
+BENCH:
+${league.bench.map((p: any) => 
+  `• ${p.fullName} (${p.position}) - Proj: ${p.projectedPoints?.toFixed(1) || 'N/A'} pts | Owned: ${p.percentOwned?.toFixed(1) || 'N/A'}% | Started: ${p.percentStarted?.toFixed(1) || 'N/A'}%`
+).join('\n') || 'No bench players found'}
 `).join('\n')}
 ${expertDataSection}
 
-Based on these ACTUAL rosters and EXPERT CONSENSUS RANKINGS, provide SPECIFIC recommendations with player names.`;
+ANALYSIS INSTRUCTIONS:
+Using the CURRENT ROSTER DATA and EXPERT CONSENSUS RANKINGS above, provide specific recommendations by:
+
+1. **Projected Points Analysis**: Compare each player's ESPN projected points
+2. **Ownership Analysis**: Consider % owned and % started for popularity insights  
+3. **Expert Validation**: Cross-reference with FantasyPros expert ranks and tiers
+4. **Consensus Check**: Prioritize players with high expert consensus %
+5. **Tier Comparison**: Prefer Tier 1-2 players, be cautious with Tier 5+
+6. **Opportunity Identification**: Look for low-owned players with high projections
+
+Provide SPECIFIC start/sit decisions with reasoning that references these metrics.`;
 
     console.log('🧠 Generating analysis with real LLM...');
     
