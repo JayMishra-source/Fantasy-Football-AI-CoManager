@@ -398,7 +398,7 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
     .replace(/\n\s*\n\s*\n/g, '\n\n'); // Remove excessive line breaks
   
   // Split response into paragraphs and sentences for better formatting
-  const paragraphs = cleanedResponse.split('\n\n').filter(p => p.trim().length > 0);
+  const paragraphs = cleanedResponse.split('\n\n').filter((p: string) => p.trim().length > 0);
   const insights: string[] = [];
   const recommendations: any[] = [];
   
@@ -437,9 +437,9 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
     
     if (leagueContent) {
       // Split into sentences and extract meaningful ones
-      const sentences = leagueContent.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      const sentences = leagueContent.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
       
-      sentences.forEach(sentence => {
+      sentences.forEach((sentence: string) => {
         const cleanSentence = sentence.trim();
         if (cleanSentence.length > 15 && cleanSentence.length < 300) {
           // Check if this sentence contains actionable fantasy advice
@@ -458,9 +458,9 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   if (insights.length < 3) {
     console.log('📋 Adding general insights from full response...');
     
-    const allSentences = cleanedResponse.split(/[.!?]+/).filter(s => s.trim().length > 15);
+    const allSentences = cleanedResponse.split(/[.!?]+/).filter((s: string) => s.trim().length > 15);
     
-    allSentences.forEach(sentence => {
+    allSentences.forEach((sentence: string) => {
       const cleanSentence = sentence.trim();
       if (cleanSentence.length > 20 && cleanSentence.length < 200 && insights.length < 8) {
         // Look for fantasy-relevant content
@@ -480,7 +480,7 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   if (insights.length === 0) {
     console.log('📋 No specific insights found, including general analysis...');
     
-    paragraphs.slice(0, 3).forEach(paragraph => {
+    paragraphs.slice(0, 3).forEach((paragraph: string) => {
       if (paragraph.trim().length > 30 && paragraph.trim().length < 400) {
         insights.push(paragraph.trim());
       }
