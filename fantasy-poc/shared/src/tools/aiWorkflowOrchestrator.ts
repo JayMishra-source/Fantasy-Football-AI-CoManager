@@ -92,37 +92,58 @@ FANTASY ANALYSIS GUIDELINES:
 
 CURRENT ROSTER DATA:
 ${leagueData.map(league => `
-${league.leagueName} (${league.teamName}):
+${league.leagueName} (Team Name: ${league.teamName?.replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)])}):
 
 STARTERS:
 ${league.starters.map((p: any) => {
-  // Avoid GitHub secret redaction by using descriptive text instead of numbers
+  // Convert ALL projections to words to avoid GitHub secret redaction
   let projDesc = 'Unknown projection';
-  if (p.projectedPoints) {
-    if (p.projectedPoints < 5) projDesc = 'Very Low projection';
-    else if (p.projectedPoints < 10) projDesc = 'Low projection'; 
-    else if (p.projectedPoints < 15) projDesc = 'Moderate projection';
-    else if (p.projectedPoints < 20) projDesc = 'Good projection';
-    else if (p.projectedPoints < 30) projDesc = 'High projection';
-    else projDesc = 'Season-total data';
+  if (p.projectedPoints !== undefined && p.projectedPoints !== null) {
+    const pts = p.projectedPoints;
+    // Convert the number to words for ALL values
+    const ptsInWords = pts.toFixed(1).replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    // Add category label for context
+    let category = '';
+    if (pts < 2) category = 'Very Low';
+    else if (pts < 6) category = 'Low';
+    else if (pts < 12) category = 'Moderate';
+    else if (pts < 18) category = 'Good';
+    else if (pts < 25) category = 'High';
+    else if (pts < 50) category = 'Very High';
+    else category = 'Season-total';
+    
+    projDesc = `${category} (${ptsInWords} points)`;
   }
   
   let ownedDesc = 'Unknown ownership';
   if (p.percentOwned !== undefined) {
-    if (p.percentOwned < 10) ownedDesc = 'Rarely owned';
-    else if (p.percentOwned < 30) ownedDesc = 'Lightly owned';
-    else if (p.percentOwned < 60) ownedDesc = 'Moderately owned';
-    else if (p.percentOwned < 90) ownedDesc = 'Widely owned';
-    else ownedDesc = 'Nearly universal';
+    const ownedPct = Math.round(p.percentOwned);
+    const ownedInWords = ownedPct.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    let category = '';
+    if (ownedPct < 10) category = 'Rarely owned';
+    else if (ownedPct < 30) category = 'Lightly owned';
+    else if (ownedPct < 60) category = 'Moderately owned';
+    else if (ownedPct < 90) category = 'Widely owned';
+    else category = 'Nearly universal';
+    
+    ownedDesc = `${category} (${ownedInWords} percent)`;
   }
   
   let startedDesc = 'Unknown usage';
   if (p.percentStarted !== undefined) {
-    if (p.percentStarted < 10) startedDesc = 'Rarely started';
-    else if (p.percentStarted < 30) startedDesc = 'Bench player';
-    else if (p.percentStarted < 60) startedDesc = 'Flex option';
-    else if (p.percentStarted < 90) startedDesc = 'Regular starter';
-    else startedDesc = 'Must-start player';
+    const startedPct = Math.round(p.percentStarted);
+    const startedInWords = startedPct.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    let category = '';
+    if (startedPct < 10) category = 'Rarely started';
+    else if (startedPct < 30) category = 'Bench player';
+    else if (startedPct < 60) category = 'Flex option';
+    else if (startedPct < 90) category = 'Regular starter';
+    else category = 'Must-start player';
+    
+    startedDesc = `${category} (${startedInWords} percent)`;
   }
   
   return `• ${p.fullName} (${p.position}) - ${projDesc} | ${ownedDesc} | ${startedDesc}`;
@@ -130,33 +151,54 @@ ${league.starters.map((p: any) => {
 
 BENCH:
 ${league.bench.map((p: any) => {
-  // Avoid GitHub secret redaction by using descriptive text instead of numbers
+  // Convert ALL projections to words to avoid GitHub secret redaction
   let projDesc = 'Unknown projection';
-  if (p.projectedPoints) {
-    if (p.projectedPoints < 5) projDesc = 'Very Low projection';
-    else if (p.projectedPoints < 10) projDesc = 'Low projection'; 
-    else if (p.projectedPoints < 15) projDesc = 'Moderate projection';
-    else if (p.projectedPoints < 20) projDesc = 'Good projection';
-    else if (p.projectedPoints < 30) projDesc = 'High projection';
-    else projDesc = 'Season-total data';
+  if (p.projectedPoints !== undefined && p.projectedPoints !== null) {
+    const pts = p.projectedPoints;
+    // Convert the number to words for ALL values
+    const ptsInWords = pts.toFixed(1).replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    // Add category label for context
+    let category = '';
+    if (pts < 2) category = 'Very Low';
+    else if (pts < 6) category = 'Low';
+    else if (pts < 12) category = 'Moderate';
+    else if (pts < 18) category = 'Good';
+    else if (pts < 25) category = 'High';
+    else if (pts < 50) category = 'Very High';
+    else category = 'Season-total';
+    
+    projDesc = `${category} (${ptsInWords} points)`;
   }
   
   let ownedDesc = 'Unknown ownership';
   if (p.percentOwned !== undefined) {
-    if (p.percentOwned < 10) ownedDesc = 'Rarely owned';
-    else if (p.percentOwned < 30) ownedDesc = 'Lightly owned';
-    else if (p.percentOwned < 60) ownedDesc = 'Moderately owned';
-    else if (p.percentOwned < 90) ownedDesc = 'Widely owned';
-    else ownedDesc = 'Nearly universal';
+    const ownedPct = Math.round(p.percentOwned);
+    const ownedInWords = ownedPct.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    let category = '';
+    if (ownedPct < 10) category = 'Rarely owned';
+    else if (ownedPct < 30) category = 'Lightly owned';
+    else if (ownedPct < 60) category = 'Moderately owned';
+    else if (ownedPct < 90) category = 'Widely owned';
+    else category = 'Nearly universal';
+    
+    ownedDesc = `${category} (${ownedInWords} percent)`;
   }
   
   let startedDesc = 'Unknown usage';
   if (p.percentStarted !== undefined) {
-    if (p.percentStarted < 10) startedDesc = 'Rarely started';
-    else if (p.percentStarted < 30) startedDesc = 'Bench player';
-    else if (p.percentStarted < 60) startedDesc = 'Flex option';
-    else if (p.percentStarted < 90) startedDesc = 'Regular starter';
-    else startedDesc = 'Must-start player';
+    const startedPct = Math.round(p.percentStarted);
+    const startedInWords = startedPct.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    let category = '';
+    if (startedPct < 10) category = 'Rarely started';
+    else if (startedPct < 30) category = 'Bench player';
+    else if (startedPct < 60) category = 'Flex option';
+    else if (startedPct < 90) category = 'Regular starter';
+    else category = 'Must-start player';
+    
+    startedDesc = `${category} (${startedInWords} percent)`;
   }
   
   return `• ${p.fullName} (${p.position}) - ${projDesc} | ${ownedDesc} | ${startedDesc}`;
@@ -190,12 +232,15 @@ Provide SPECIFIC start/sit decisions with reasoning that references these descri
     // Debug player data to understand projection values
     console.log('\n🔍 ========== SAMPLE PLAYER DATA DEBUG ==========');
     if (leagueData[0]?.starters?.length > 0) {
-      const samplePlayer = leagueData[0].starters[0];
-      console.log('Sample player:', samplePlayer.fullName);
-      console.log('Projected Points:', samplePlayer.projectedPoints);
-      console.log('Percent Owned:', samplePlayer.percentOwned);
-      console.log('Percent Started:', samplePlayer.percentStarted);
-      console.log('Raw stats data:', (samplePlayer as any).stats || 'No stats');
+      console.log('Analyzing first three starters for projection data:');
+      leagueData[0].starters.slice(0, 3).forEach((player: any, index: number) => {
+        console.log(`Player ${index + 1}: ${player.fullName} (${player.position})`);
+        console.log('  - Projected Points:', player.projectedPoints);
+        console.log('  - Percent Owned:', player.percentOwned);
+        console.log('  - Percent Started:', player.percentStarted);
+        console.log('  - Raw stats data:', (player as any).stats?.slice(0, 3) || 'No stats');
+        console.log('---');
+      });
     }
     console.log('🔍 ========== DEBUG END ==========\n');
     
