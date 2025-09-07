@@ -100,14 +100,18 @@ jobs:
           # Determine intelligence mode based on trigger
           if [[ "${{ github.event.inputs.intelligence_mode }}" != "" ]]; then
             INTEL_MODE="${{ github.event.inputs.intelligence_mode }}"
-          elif [[ "${{ github.event.schedule }}" == "0 13 * * *" ]]; then
+          elif [[ "${{ github.event.schedule }}" == "0 12 * * *" ]]; then
             INTEL_MODE="full"
-          elif [[ "${{ github.event.schedule }}" == "0 * * * 0,1,4" ]]; then
+          elif [[ "${{ github.event.schedule }}" == "0 */2 * * 0,1,4" ]]; then
             INTEL_MODE="realtime"
-          elif [[ "${{ github.event.schedule }}" == "0 3 * * 6" ]]; then
+          elif [[ "${{ github.event.schedule }}" == "0 16 * * 0" ]]; then
+            INTEL_MODE="full"
+          elif [[ "${{ github.event.schedule }}" == "0 23 * * 4" ]]; then
+            INTEL_MODE="full"
+          elif [[ "${{ github.event.schedule }}" == "0 23 * * 1" ]]; then
+            INTEL_MODE="full"
+          elif [[ "${{ github.event.schedule }}" == "0 14 * * 2" ]]; then
             INTEL_MODE="analytics"
-          elif [[ "${{ github.event.schedule }}" == "*/15 23-04 * * 0,1,4" ]]; then
-            INTEL_MODE="emergency"
           else
             INTEL_MODE="full"
           fi
