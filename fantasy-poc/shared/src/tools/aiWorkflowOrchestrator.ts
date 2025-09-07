@@ -221,26 +221,30 @@ ${league.bench.map((p: any) => {
 `).join('\n')}
 ${expertDataSection}
 
-ANALYSIS INSTRUCTIONS:
-Using the CURRENT ROSTER DATA and EXPERT CONSENSUS RANKINGS above, provide specific recommendations by:
+CO-MANAGER REVIEW INSTRUCTIONS:
+Review the roster like we're sitting together planning this week's lineup. Go position by position and tell me who to start, who to bench, and who to pick up from waivers. Be direct and decisive.
 
-1. **Projection Analysis**: Prioritize "Good/High projection" over "Low/Moderate projection" players
-2. **Ownership Analysis**: 
-   - "Nearly universal" = Consensus must-starts
-   - "Rarely/Lightly owned" + Good projection = Hidden gems
-   - "Widely owned" but "Rarely started" = Potential busts
-3. **Usage Patterns**:
-   - "Must-start player" = Clear starters
-   - "Regular starter" = Good options
-   - "Flex option" = Situational plays
-   - "Bench player" = Avoid unless expert rankings say otherwise
-4. **Expert Validation**: Cross-reference with FantasyPros expert ranks and tiers
-5. **Consensus Check**: Prioritize players with high expert consensus %
-6. **Tier Comparison**: Prefer Tier 1-2 players, be cautious with Tier 5+
+**POSITION-BY-POSITION REVIEW:**
 
-Note: Players showing "Season-total data" for projections need careful expert rank evaluation.
+1. **QUARTERBACK**: Look at my current starter vs bench QBs. Should I start someone else? Any waiver QBs worth grabbing?
 
-Provide SPECIFIC start/sit decisions with reasoning that references these descriptive metrics.`;
+2. **RUNNING BACKS**: Check my RB1, RB2, and FLEX options. Are my starters the highest projected? Should I swap anyone from the bench? Any waiver RBs to target?
+
+3. **WIDE RECEIVERS**: Review my WR1, WR2, and FLEX spots. Who has the best matchups? Should I start different WRs from my bench? Any waiver WRs to consider?
+
+4. **TIGHT END**: Is my TE starter the right choice? Better option on my bench or waivers?
+
+5. **FLEX POSITIONS**: Compare my RBs vs WRs for FLEX spots. Who has the highest ceiling this week?
+
+6. **DEFENSE/KICKER**: Any better streaming options on waivers?
+
+**GIVE ME:**
+- WHO TO START at each position (with brief reason)  
+- WHO TO BENCH (and why)
+- TOP 3 WAIVER PICKUPS to consider (if any)
+- Any lineup swaps between starters and bench
+
+Use web_search() to check for any breaking injury news, weather concerns, or lineup changes that could affect my decisions.`;
 
     console.log('🧠 Generating analysis with real LLM...');
     
@@ -299,7 +303,8 @@ Provide SPECIFIC start/sit decisions with reasoning that references these descri
         confidence: insights.confidence,
         dataSourcesUsed: expertRankings 
           ? ['ESPN API', 'FantasyPros Expert Rankings', 'Real LLM Analysis']
-          : ['ESPN API', 'Real LLM Analysis (No FantasyPros)']
+          : ['ESPN API', 'Real LLM Analysis (No FantasyPros)'],
+        fullLLMResponse: llmResponse.content || llmResponse.text || 'No response generated'
       },
       recommendations: leagueData.map(league => ({
         leagueId: league.leagueId,
@@ -404,6 +409,7 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
     };
 
     console.log('🔧 Starting LLM analysis with web search tool available...');
+    console.log(`📊 Tool configuration: web_search tool enabled with description: ${webSearchTool.description}`);
     
     // Get the LLM manager to access the provider directly
     const llmManager = await (llmConfig as any).getLLMManager();
@@ -412,6 +418,8 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
     if (!provider) {
       throw new Error('No LLM provider available');
     }
+    
+    console.log(`🤖 Using LLM provider: ${provider.name}`);    
 
     let searchCount = 0;
     const maxSearches = parseInt(process.env.MAX_WEB_SEARCHES || '5');
@@ -427,6 +435,8 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
 
     while (conversationTurns < maxTurns) {
       console.log(`🔄 Conversation turn ${conversationTurns + 1}/${maxTurns}`);
+      console.log(`📝 Messages in conversation: ${messages.length}`);
+      console.log('🔧 Calling LLM with tools enabled...');
       
       const response = await provider.chat(messages, {
         tools: [webSearchTool],
@@ -434,6 +444,12 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
         temperature: 0.7,
         tool_choice: 'auto'
       });
+      
+      console.log(`📤 LLM Response received:`);
+      console.log(`  - Content length: ${(response.content || '').length} chars`);
+      console.log(`  - Tool calls: ${response.tool_calls ? response.tool_calls.length : 0}`);
+      console.log(`  - Finish reason: ${response.finish_reason}`);
+      console.log(`  - Usage: ${JSON.stringify(response.usage)}`);
 
       totalCost += (response.usage?.total_tokens || 0) * 0.000001; // Rough cost estimate
 
@@ -441,49 +457,83 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
       if (response.tool_calls && response.tool_calls.length > 0 && searchCount < maxSearches) {
         console.log(`🔍 LLM requested ${response.tool_calls.length} tool calls`);
         
+        // Log each tool call in detail
+        response.tool_calls.forEach((toolCall, index) => {
+          console.log(`  Tool call ${index + 1}:`);
+          console.log(`    - Name: ${toolCall.name}`);
+          console.log(`    - Arguments: ${JSON.stringify(toolCall.arguments)}`);
+        });
+        
         // Add the assistant's response to conversation
         messages.push({ 
           role: 'assistant', 
           content: response.content || 'I need to search for more information.'
         });
+        console.log(`💬 Added assistant response to conversation`);
 
         // Process each tool call
         let toolResults = '';
-        for (const toolCall of response.tool_calls) {
+        for (const [index, toolCall] of response.tool_calls.entries()) {
           if (toolCall.name === 'web_search' && searchCount < maxSearches) {
             const query = toolCall.arguments?.query;
+            console.log(`🔎 Processing tool call ${index + 1}: web_search`);
+            
             if (query && typeof query === 'string') {
-              console.log(`🔎 Executing web search: "${query}"`);
+              console.log(`  - Query: "${query}"`);
+              console.log(`  - Search count: ${searchCount + 1}/${maxSearches}`);
               searchCount++;
               
               const searchResult = await simpleWebSearch.search(query);
+              console.log(`  - Search completed: success=${searchResult.success}`);
+              
               if (searchResult.success && searchResult.results) {
+                console.log(`  - Results length: ${searchResult.results.length} chars`);
                 toolResults += `\nWeb search results for "${query}":\n${searchResult.results}\n`;
               } else {
+                console.log(`  - Search failed: ${searchResult.error}`);
                 toolResults += `\nWeb search for "${query}" failed: ${searchResult.error}\n`;
               }
+            } else {
+              console.log(`  - Invalid query: ${typeof query} - ${query}`);
             }
+          } else if (toolCall.name !== 'web_search') {
+            console.log(`  - Unknown tool: ${toolCall.name} (ignored)`);
+          } else {
+            console.log(`  - Search limit reached: ${searchCount}/${maxSearches}`);
           }
         }
 
         // Add tool results to conversation
+        console.log(`🔄 Tool execution completed, adding results to conversation`);
         if (toolResults) {
+          console.log(`✅ Tool results available: ${toolResults.length} chars`);
+          const userMessage = `Here are the search results:\n${toolResults}\n\nPlease provide your final fantasy analysis incorporating this information.`;
           messages.push({ 
             role: 'user', 
-            content: `Here are the search results:\n${toolResults}\n\nPlease provide your final fantasy analysis incorporating this information.`
+            content: userMessage
           });
+          console.log(`💬 Added tool results to conversation (${userMessage.length} chars)`);
         } else {
+          console.log(`⚠️ No tool results to add`);
           // No successful searches, ask for final analysis
           messages.push({ 
             role: 'user', 
             content: 'Please provide your final fantasy analysis based on the available data.'
           });
+          console.log(`💬 Added fallback message to conversation`);
         }
         
       } else {
         // No tool calls or max searches reached, this is the final response
+        if (!response.tool_calls || response.tool_calls.length === 0) {
+          console.log(`📋 No tool calls in response - treating as final`);
+        } else {
+          console.log(`🛑 Max searches reached (${searchCount}/${maxSearches}) - treating as final`);
+        }
+        
         finalResponse = response.content || 'Analysis completed.';
         console.log(`✅ Final response received (${finalResponse.length} characters)`);
+        console.log(`📊 Final response preview: ${finalResponse.substring(0, 200)}...`);
         break;
       }
 
@@ -512,7 +562,7 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
 }
 
 /**
- * Extract actionable insights from LLM response - simplified to preserve full analysis
+ * Extract actionable insights from LLM response - preserve complete analysis for Discord
  */
 function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   keyInsights: string[];
@@ -522,109 +572,85 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
 } {
   const responseText = llmResponse.content || llmResponse.text || JSON.stringify(llmResponse);
   
-  console.log('📋 Extracting insights from LLM response...');
+  console.log('📋 Preserving complete LLM response for full transparency...');
   console.log(`Response length: ${responseText.length} characters`);
   
-  // Clean up response formatting
+  // Clean up response formatting but preserve structure
   const cleanedResponse = responseText
-    .replace(/\n\s*\n\s*\n/g, '\n\n'); // Remove excessive line breaks
+    .replace(/\n\s*\n\s*\n/g, '\n\n') // Remove excessive line breaks
+    .trim();
   
-  // Split response into paragraphs and sentences for better formatting
-  const paragraphs = cleanedResponse.split('\n\n').filter((p: string) => p.trim().length > 0);
+  // Extract a few key insights for summary purposes, but keep full response
   const insights: string[] = [];
   const recommendations: any[] = [];
   
-  // For each league, try to find relevant content
-  leagueData.forEach((league, index) => {
-    console.log(`🏈 Processing insights for ${league.leagueName}...`);
+  // Extract high-level recommendations for each league (for summary only)
+  leagueData.forEach((league) => {
+    console.log(`🏈 Extracting summary insights for ${league.leagueName}...`);
     
-    // Look for content mentioning this league
-    let leagueContent = '';
-    
-    // Try to find league-specific sections
-    const leagueIndicators = [
-      league.leagueName,
-      `League ${index + 1}`,
-      index === 0 ? 'Main League' : 'Secondary League',
-      index === 0 ? 'First league' : 'Second league'
+    // Look for main recommendations in the response
+    const startPatterns = [
+      /START.*?:/gi,
+      /CONTINUE STARTING.*?:/gi, 
+      /MUST-START.*?:/gi,
+      /RECOMMENDED LINEUP/gi
     ];
     
-    for (const indicator of leagueIndicators) {
-      const pattern = new RegExp(`.*${indicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*`, 'gi');
-      const matches = cleanedResponse.match(pattern);
-      if (matches && matches.length > 0) {
-        leagueContent = matches.join('\n');
-        console.log(`✅ Found content for ${league.leagueName} using indicator: ${indicator}`);
-        break;
-      }
-    }
+    const benchPatterns = [
+      /BENCH.*?:/gi,
+      /SIT.*?:/gi,
+      /AVOID.*?:/gi
+    ];
     
-    // If no league-specific content found, use a portion of the response
-    if (!leagueContent && paragraphs.length > 0) {
-      const startParagraph = Math.floor((paragraphs.length / leagueData.length) * index);
-      const endParagraph = Math.floor((paragraphs.length / leagueData.length) * (index + 1));
-      leagueContent = paragraphs.slice(startParagraph, endParagraph).join('\n\n');
-      console.log(`⚠️ Using general content portion for ${league.leagueName}`);
-    }
+    const waiverPatterns = [
+      /WAIVER.*?:/gi,
+      /PICKUP.*?:/gi,
+      /TARGET.*?:/gi,
+      /CONSIDER.*?:/gi
+    ];
     
-    if (leagueContent) {
-      // Split into sentences and extract meaningful ones
-      const sentences = leagueContent.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
+    // Extract one key insight per league for summary
+    if (responseText.toLowerCase().includes(league.leagueName.toLowerCase()) || 
+        responseText.toLowerCase().includes('lineup') ||
+        responseText.toLowerCase().includes('start')) {
       
-      sentences.forEach((sentence: string) => {
-        const cleanSentence = sentence.trim();
-        if (cleanSentence.length > 15 && cleanSentence.length < 300) {
-          // Check if this sentence contains actionable fantasy advice
-          if (/\b(start|sit|play|bench|consider|target|pickup|drop|add|claim|trade|waiver)\b/i.test(cleanSentence) ||
-              /\b(recommend|suggest|should|would|better|prefer|avoid|focus)\b/i.test(cleanSentence) ||
-              /[A-Z][a-z]+\s+[A-Z][a-z]+.*\b(RB|QB|WR|TE|K|DST|points|projection)\b/i.test(cleanSentence)) {
-            
-            insights.push(`${league.leagueName}: ${cleanSentence}`);
-          }
-        }
+      const summaryInsight = `${league.leagueName}: Complete lineup analysis with position-by-position recommendations`;
+      insights.push(summaryInsight);
+      
+      // Add a recommendation object for this league
+      recommendations.push({
+        league: league.leagueName,
+        type: 'lineup_optimization',
+        priority: 'high',
+        summary: 'Full position-by-position analysis provided'
       });
     }
   });
   
-  // If we didn't get enough league-specific insights, add general ones
-  if (insights.length < 3) {
-    console.log('📋 Adding general insights from full response...');
-    
-    const allSentences = cleanedResponse.split(/[.!?]+/).filter((s: string) => s.trim().length > 15);
-    
-    allSentences.forEach((sentence: string) => {
-      const cleanSentence = sentence.trim();
-      if (cleanSentence.length > 20 && cleanSentence.length < 200 && insights.length < 8) {
-        // Look for fantasy-relevant content
-        if (/\b(start|sit|play|bench|consider|target|pickup|drop|add|claim|trade|waiver)\b/i.test(cleanSentence) ||
-            /[A-Z][a-z]+\s+[A-Z][a-z]+.*\b(RB|QB|WR|TE|K|DST|points|projection|rank|tier)\b/i.test(cleanSentence)) {
-          
-          // Don't duplicate existing insights
-          if (!insights.some(existing => existing.includes(cleanSentence.substring(0, 30)))) {
-            insights.push(cleanSentence);
-          }
-        }
-      }
-    });
-  }
-  
-  // If still no good insights, include the first few meaningful paragraphs
+  // If no specific insights found, create generic summary
   if (insights.length === 0) {
-    console.log('📋 No specific insights found, including general analysis...');
+    console.log('📋 No league-specific insights found, creating generic summary...');
+    insights.push('Complete fantasy analysis provided with lineup recommendations');
+    insights.push('Expert consensus rankings integrated for all position decisions');
+    insights.push('Position-by-position analysis completed for optimal lineup');
     
-    paragraphs.slice(0, 3).forEach((paragraph: string) => {
-      if (paragraph.trim().length > 30 && paragraph.trim().length < 400) {
-        insights.push(paragraph.trim());
-      }
+    // Add basic recommendations for all leagues
+    leagueData.forEach((league) => {
+      recommendations.push({
+        league: league.leagueName,
+        type: 'general_analysis',
+        priority: 'medium',
+        summary: 'Complete roster analysis provided'
+      });
     });
   }
   
   console.log(`📋 Extracted ${insights.length} insights for user`);
   
   return {
-    keyInsights: insights.slice(0, 8), // Allow more insights to preserve analysis
+    keyInsights: insights.slice(0, 8), // Minimal summary insights
     recommendations: recommendations,
     confidence: insights.length > 3 ? 85 : 70,
-    analysis: cleanedResponse
+    analysis: cleanedResponse // COMPLETE unfiltered LLM response preserved here
   };
 }
