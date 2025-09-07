@@ -266,34 +266,24 @@ Provide SPECIFIC start/sit decisions with reasoning that references these descri
     console.log(enhancedPrompt);
     console.log('📝 ========== LLM PROMPT END ==========\n');
     
-    // Use real LLM for analysis
-    const llmResponse = await llmConfig.generateResponse(enhancedPrompt);
+    // Use LLM with web search tool calling capability
+    const llmResponse = await generateResponseWithWebSearchTools(enhancedPrompt);
     
-    // Process any web search requests in the LLM response
-    console.log('🔍 Processing web search requests...');
-    simpleWebSearch.resetSearchCount(); // Reset for this analysis session
-    const responseWithSearchResults = await simpleWebSearch.processWebSearchRequests(llmResponse.content || '');
-    
-    // Update the llmResponse with search results
-    const enhancedLlmResponse = {
-      ...llmResponse,
-      content: responseWithSearchResults
-    };
-    
-    // Log the enhanced LLM response for debugging
-    console.log('\n🤖 ========== LLM RESPONSE (WITH WEB SEARCH) START ==========');
-    console.log('Response length:', (enhancedLlmResponse.content || '').length, 'characters');
-    if (enhancedLlmResponse.cost) {
-      console.log('Estimated cost: $', enhancedLlmResponse.cost.toFixed(4));
+    // Log the LLM response for debugging
+    console.log('\n🤖 ========== LLM RESPONSE (WITH TOOL CALLING) START ==========');
+    console.log('Response length:', (llmResponse.content || '').length, 'characters');
+    if (llmResponse.cost) {
+      console.log('Estimated cost: $', llmResponse.cost.toFixed(4));
     }
-    const searchStats = simpleWebSearch.getSearchStats();
-    console.log(`Web searches: ${searchStats.performed}/${searchStats.max}`);
+    if (llmResponse.searches_performed !== undefined) {
+      console.log(`Web searches performed: ${llmResponse.searches_performed}`);
+    }
     console.log('---');
-    console.log(enhancedLlmResponse.content || JSON.stringify(enhancedLlmResponse));
-    console.log('🤖 ========== LLM RESPONSE (WITH WEB SEARCH) END ==========\n');
+    console.log(llmResponse.content || JSON.stringify(llmResponse));
+    console.log('🤖 ========== LLM RESPONSE (WITH TOOL CALLING) END ==========\n');
 
-    // Extract specific insights from enhanced LLM response
-    const insights = extractInsightsFromLLMResponse(enhancedLlmResponse, leagueData);
+    // Extract specific insights from LLM response
+    const insights = extractInsightsFromLLMResponse(llmResponse, leagueData);
 
     const result = {
       success: true,
@@ -390,6 +380,133 @@ async function generateMockAnalysis(prompt: string, leagueData: any[]): Promise<
     analysis: `Comprehensive analysis completed for ${leagueData.length} leagues with real roster data.`,
     recommendations: recommendations
   };
+}
+
+/**
+ * Generate LLM response with web search tool calling capability
+ */
+async function generateResponseWithWebSearchTools(prompt: string): Promise<{ content: string; cost?: number; searches_performed?: number }> {
+  try {
+    // Define the web search tool that LLM can call
+    const webSearchTool = {
+      name: 'web_search',
+      description: 'Search the web for current information about fantasy football, player news, injuries, weather, or other relevant topics',
+      input_schema: {
+        type: 'object' as const,
+        properties: {
+          query: {
+            type: 'string' as const,
+            description: 'The search query to find current information'
+          }
+        },
+        required: ['query']
+      }
+    };
+
+    console.log('🔧 Starting LLM analysis with web search tool available...');
+    
+    // Get the LLM manager to access the provider directly
+    const llmManager = await (llmConfig as any).getLLMManager();
+    const provider = llmManager.getCurrentProvider();
+    
+    if (!provider) {
+      throw new Error('No LLM provider available');
+    }
+
+    let searchCount = 0;
+    const maxSearches = parseInt(process.env.MAX_WEB_SEARCHES || '5');
+    let totalCost = 0;
+
+    // Start the conversation with tools available
+    let messages = [{ role: 'user' as const, content: prompt }];
+    let finalResponse = '';
+    let conversationTurns = 0;
+    const maxTurns = 10; // Prevent infinite loops
+
+    while (conversationTurns < maxTurns) {
+      console.log(`🔄 Conversation turn ${conversationTurns + 1}/${maxTurns}`);
+      
+      const response = await provider.chat(messages, {
+        tools: [webSearchTool],
+        max_tokens: 4000,
+        temperature: 0.7,
+        tool_choice: 'auto'
+      });
+
+      totalCost += (response.usage?.total_tokens || 0) * 0.000001; // Rough cost estimate
+
+      // Check if LLM wants to use tools
+      if (response.tool_calls && response.tool_calls.length > 0 && searchCount < maxSearches) {
+        console.log(`🔍 LLM requested ${response.tool_calls.length} tool calls`);
+        
+        // Add the assistant's response to conversation
+        messages.push({ 
+          role: 'assistant' as const, 
+          content: response.content || 'I need to search for more information.'
+        });
+
+        // Process each tool call
+        let toolResults = '';
+        for (const toolCall of response.tool_calls) {
+          if (toolCall.name === 'web_search' && searchCount < maxSearches) {
+            const query = toolCall.arguments?.query;
+            if (query && typeof query === 'string') {
+              console.log(`🔎 Executing web search: "${query}"`);
+              searchCount++;
+              
+              const searchResult = await simpleWebSearch.search(query);
+              if (searchResult.success && searchResult.results) {
+                toolResults += `\nWeb search results for "${query}":\n${searchResult.results}\n`;
+              } else {
+                toolResults += `\nWeb search for "${query}" failed: ${searchResult.error}\n`;
+              }
+            }
+          }
+        }
+
+        // Add tool results to conversation
+        if (toolResults) {
+          messages.push({ 
+            role: 'user' as const, 
+            content: `Here are the search results:\n${toolResults}\n\nPlease provide your final fantasy analysis incorporating this information.`
+          });
+        } else {
+          // No successful searches, ask for final analysis
+          messages.push({ 
+            role: 'user' as const, 
+            content: 'Please provide your final fantasy analysis based on the available data.'
+          });
+        }
+        
+      } else {
+        // No tool calls or max searches reached, this is the final response
+        finalResponse = response.content || 'Analysis completed.';
+        console.log(`✅ Final response received (${finalResponse.length} characters)`);
+        break;
+      }
+
+      conversationTurns++;
+    }
+
+    if (!finalResponse && conversationTurns >= maxTurns) {
+      finalResponse = 'Analysis completed but maximum conversation turns reached. Please check the logs for details.';
+      console.warn('⚠️ Reached maximum conversation turns without final response');
+    }
+
+    console.log(`🔍 Web search tool calling complete. Searches: ${searchCount}/${maxSearches}, Cost: $${totalCost.toFixed(4)}`);
+
+    return {
+      content: finalResponse,
+      cost: totalCost,
+      searches_performed: searchCount
+    };
+
+  } catch (error: any) {
+    console.error('❌ Web search tool calling failed:', error.message);
+    // Fallback to regular LLM call without tools
+    console.log('🔄 Falling back to regular LLM analysis...');
+    return await llmConfig.generateResponse(prompt);
+  }
 }
 
 /**
