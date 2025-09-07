@@ -418,7 +418,9 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
     let totalCost = 0;
 
     // Start the conversation with tools available
-    let messages = [{ role: 'user' as const, content: prompt }];
+    let messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
+      { role: 'user', content: prompt }
+    ];
     let finalResponse = '';
     let conversationTurns = 0;
     const maxTurns = 10; // Prevent infinite loops
@@ -441,7 +443,7 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
         
         // Add the assistant's response to conversation
         messages.push({ 
-          role: 'assistant' as const, 
+          role: 'assistant', 
           content: response.content || 'I need to search for more information.'
         });
 
@@ -467,13 +469,13 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
         // Add tool results to conversation
         if (toolResults) {
           messages.push({ 
-            role: 'user' as const, 
+            role: 'user', 
             content: `Here are the search results:\n${toolResults}\n\nPlease provide your final fantasy analysis incorporating this information.`
           });
         } else {
           // No successful searches, ask for final analysis
           messages.push({ 
-            role: 'user' as const, 
+            role: 'user', 
             content: 'Please provide your final fantasy analysis based on the available data.'
           });
         }
