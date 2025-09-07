@@ -1,6 +1,7 @@
 import { espnApi } from '../services/espnApi.js';
 import { fantasyProsApi } from '../services/fantasyProsApi.js';
 import { llmConfig } from '../config/llm-config.js';
+import { simpleWebSearch } from '../services/simpleWebSearch.js';
 
 export async function executeAIWorkflow(args: {
   task: string;
@@ -268,18 +269,31 @@ Provide SPECIFIC start/sit decisions with reasoning that references these descri
     // Use real LLM for analysis
     const llmResponse = await llmConfig.generateResponse(enhancedPrompt);
     
-    // Log the LLM response for debugging
-    console.log('\n🤖 ========== LLM RESPONSE START ==========');
-    console.log('Response length:', (llmResponse.content || '').length, 'characters');
-    if (llmResponse.cost) {
-      console.log('Estimated cost: $', llmResponse.cost.toFixed(4));
+    // Process any web search requests in the LLM response
+    console.log('🔍 Processing web search requests...');
+    simpleWebSearch.resetSearchCount(); // Reset for this analysis session
+    const responseWithSearchResults = await simpleWebSearch.processWebSearchRequests(llmResponse.content || '');
+    
+    // Update the llmResponse with search results
+    const enhancedLlmResponse = {
+      ...llmResponse,
+      content: responseWithSearchResults
+    };
+    
+    // Log the enhanced LLM response for debugging
+    console.log('\n🤖 ========== LLM RESPONSE (WITH WEB SEARCH) START ==========');
+    console.log('Response length:', (enhancedLlmResponse.content || '').length, 'characters');
+    if (enhancedLlmResponse.cost) {
+      console.log('Estimated cost: $', enhancedLlmResponse.cost.toFixed(4));
     }
+    const searchStats = simpleWebSearch.getSearchStats();
+    console.log(`Web searches: ${searchStats.performed}/${searchStats.max}`);
     console.log('---');
-    console.log(llmResponse.content || JSON.stringify(llmResponse));
-    console.log('🤖 ========== LLM RESPONSE END ==========\n');
+    console.log(enhancedLlmResponse.content || JSON.stringify(enhancedLlmResponse));
+    console.log('🤖 ========== LLM RESPONSE (WITH WEB SEARCH) END ==========\n');
 
-    // Extract specific insights from LLM response
-    const insights = extractInsightsFromLLMResponse(llmResponse, leagueData);
+    // Extract specific insights from enhanced LLM response
+    const insights = extractInsightsFromLLMResponse(enhancedLlmResponse, leagueData);
 
     const result = {
       success: true,
@@ -392,9 +406,8 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   console.log('📋 Extracting insights from LLM response...');
   console.log(`Response length: ${responseText.length} characters`);
   
-  // Clean up web_search attempts that can't be executed
+  // Clean up response formatting
   const cleanedResponse = responseText
-    .replace(/web_search\([^)]+\)/g, '[Web search requested but not available]')
     .replace(/\n\s*\n\s*\n/g, '\n\n'); // Remove excessive line breaks
   
   // Split response into paragraphs and sentences for better formatting

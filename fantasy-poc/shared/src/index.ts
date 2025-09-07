@@ -5,6 +5,7 @@ export { performanceTracker } from './services/performanceTracker.js';
 export { learningEngine } from './services/learningEngine.js';
 export { abTestingService } from './services/abTesting.js';
 export { enhancedCostMonitor } from './services/enhancedCostMonitor.js';
+export { simpleWebSearch, SimpleWebSearch } from './services/simpleWebSearch.js';
 
 // LLM Configuration
 export { llmConfig } from './config/llm-config.js';
