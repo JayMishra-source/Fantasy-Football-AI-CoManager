@@ -379,7 +379,7 @@ async function generateMockAnalysis(prompt: string, leagueData: any[]): Promise<
 }
 
 /**
- * Extract actionable insights from LLM response
+ * Extract actionable insights from LLM response - simplified to preserve full analysis
  */
 function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   keyInsights: string[];
@@ -389,145 +389,110 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
 } {
   const responseText = llmResponse.content || llmResponse.text || JSON.stringify(llmResponse);
   
+  console.log('📋 Extracting insights from LLM response...');
+  console.log(`Response length: ${responseText.length} characters`);
+  
+  // Clean up web_search attempts that can't be executed
+  const cleanedResponse = responseText
+    .replace(/web_search\([^)]+\)/g, '[Web search requested but not available]')
+    .replace(/\n\s*\n\s*\n/g, '\n\n'); // Remove excessive line breaks
+  
+  // Split response into paragraphs and sentences for better formatting
+  const paragraphs = cleanedResponse.split('\n\n').filter(p => p.trim().length > 0);
   const insights: string[] = [];
   const recommendations: any[] = [];
   
-  // Extract league-specific recommendations with better fallback
+  // For each league, try to find relevant content
   leagueData.forEach((league, index) => {
-    // Try multiple patterns to find league-specific content
-    let leagueText = '';
+    console.log(`🏈 Processing insights for ${league.leagueName}...`);
     
-    // Pattern 1: Exact league name match
-    const exactPattern = new RegExp(`${league.leagueName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?(?=\\n\\n|${leagueData.map(l => l.leagueName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')}|$)`, 'i');
-    const exactMatch = responseText.match(exactPattern);
+    // Look for content mentioning this league
+    let leagueContent = '';
     
-    // Pattern 2: Generic league indicators (League 1, League 2, Main, Secondary)
-    const genericPatterns = [
-      new RegExp(`(?:league\\s*${index + 1}|${index === 0 ? 'main|first' : 'secondary|second'})\\s*league?[\\s\\S]*?(?=\\n\\n|league\\s*\\d|$)`, 'i'),
-      new RegExp(`\\b${league.leagueName.split(' ')[0]}\\b[\\s\\S]*?(?=\\n\\n|\\b(?:${leagueData.map(l => l.leagueName.split(' ')[0]).filter(n => n !== league.leagueName.split(' ')[0]).join('|')})\\b|$)`, 'i')
+    // Try to find league-specific sections
+    const leagueIndicators = [
+      league.leagueName,
+      `League ${index + 1}`,
+      index === 0 ? 'Main League' : 'Secondary League',
+      index === 0 ? 'First league' : 'Second league'
     ];
     
-    if (exactMatch) {
-      leagueText = exactMatch[0];
-      console.log(`✅ Found exact match for ${league.leagueName}`);
-    } else {
-      // Try generic patterns
-      for (const pattern of genericPatterns) {
-        const genericMatch = responseText.match(pattern);
-        if (genericMatch) {
-          leagueText = genericMatch[0];
-          console.log(`✅ Found generic match for ${league.leagueName}`);
-          break;
-        }
+    for (const indicator of leagueIndicators) {
+      const pattern = new RegExp(`.*${indicator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*`, 'gi');
+      const matches = cleanedResponse.match(pattern);
+      if (matches && matches.length > 0) {
+        leagueContent = matches.join('\n');
+        console.log(`✅ Found content for ${league.leagueName} using indicator: ${indicator}`);
+        break;
       }
     }
     
-    // If no league-specific text found, use portion of the overall response
-    if (!leagueText && index < leagueData.length) {
-      const responseLines = responseText.split('\n').filter((line: string) => line.trim());
-      const startIndex = Math.floor((responseLines.length / leagueData.length) * index);
-      const endIndex = Math.floor((responseLines.length / leagueData.length) * (index + 1));
-      leagueText = responseLines.slice(startIndex, endIndex).join('\n');
-      console.log(`⚠️ Using portion of response for ${league.leagueName} (lines ${startIndex}-${endIndex})`);
+    // If no league-specific content found, use a portion of the response
+    if (!leagueContent && paragraphs.length > 0) {
+      const startParagraph = Math.floor((paragraphs.length / leagueData.length) * index);
+      const endParagraph = Math.floor((paragraphs.length / leagueData.length) * (index + 1));
+      leagueContent = paragraphs.slice(startParagraph, endParagraph).join('\n\n');
+      console.log(`⚠️ Using general content portion for ${league.leagueName}`);
     }
     
-    if (leagueText) {
+    if (leagueContent) {
+      // Split into sentences and extract meaningful ones
+      const sentences = leagueContent.split(/[.!?]+/).filter(s => s.trim().length > 10);
       
-      // Extract specific player recommendations with more flexible patterns
-      const startPattern = /start|play|use|consider.*as.*option/gi;
-      const sitPattern = /sit|bench|avoid/gi;
-      const pickupPattern = /pickup|waiver|target.*on.*waiver|target.*available/gi;
-      
-      // Match "Start PlayerName" or "Consider PlayerName as flex option"
-      if (startPattern.test(leagueText)) {
-        const startMatch = leagueText.match(/(?:start|consider)\s+([^.]+?)(?:\s+(?:this week|as|for))/i);
-        if (startMatch) {
-          const playerName = startMatch[1].trim();
-          insights.push(`Start ${playerName}`);
-          recommendations.push({
-            league: league.leagueName,
-            type: 'start',
-            player: playerName,
-            reasoning: 'Roster analysis recommendation'
-          });
-        }
-      }
-      
-      if (sitPattern.test(leagueText)) {
-        const sitMatch = leagueText.match(/sit\s+([^.]+)/i);
-        if (sitMatch) {
-          insights.push(`${league.leagueName}: Sit ${sitMatch[1].trim()}`);
-          recommendations.push({
-            league: league.leagueName,
-            type: 'sit',
-            player: sitMatch[1].trim(),
-            reasoning: 'LLM recommendation'
-          });
-        }
-      }
-      
-      // Match "Target PlayerName for workload" or "Target available WR on waivers"  
-      if (pickupPattern.test(leagueText)) {
-        const pickupMatch = leagueText.match(/target\s+([^.]+?)(?:\s+(?:for|on|with))/i);
-        if (pickupMatch) {
-          const target = pickupMatch[1].trim();
-          insights.push(`${league.leagueName}: Target ${target}`);
-          recommendations.push({
-            league: league.leagueName,
-            type: 'target',
-            player: target,
-            reasoning: 'Strategic opportunity'
-          });
-        }
-      }
-    }
-  });
-  
-  // If no specific recommendations found, extract general insights with more flexible patterns
-  if (insights.length === 0) {
-    console.log('🔍 No league-specific insights found, trying general extraction...');
-    const lines = responseText.split('\n');
-    lines.forEach((line: string) => {
-      const cleanLine = line.trim();
-      if (cleanLine && cleanLine.length > 10 && cleanLine.length < 200) {
-        // Look for actionable statements with more flexible patterns
-        if (/\b(start|sit|target|pickup|trade|drop|consider|bench|play|add|waiver|claim)\b/i.test(cleanLine)) {
-          // Remove bullet points and formatting
-          const processedLine = cleanLine.replace(/^[•\-\*]\s*/, '').replace(/^\d+\.\s*/, '');
-          if (processedLine.length > 5) {
-            insights.push(processedLine);
-          }
-        }
-      }
-    });
-    
-    // If still no insights, try to extract any meaningful content
-    if (insights.length === 0) {
-      console.log('🔍 No actionable insights found, extracting any meaningful content...');
-      const sentences = responseText.split(/[.!?]\s+/);
-      sentences.forEach((sentence: string) => {
+      sentences.forEach(sentence => {
         const cleanSentence = sentence.trim();
-        if (cleanSentence.length > 20 && cleanSentence.length < 150) {
-          // Check for player names pattern (capitalized words)
-          if (/[A-Z][a-z]+\s+[A-Z][a-z]+/.test(cleanSentence)) {
-            insights.push(cleanSentence);
+        if (cleanSentence.length > 15 && cleanSentence.length < 300) {
+          // Check if this sentence contains actionable fantasy advice
+          if (/\b(start|sit|play|bench|consider|target|pickup|drop|add|claim|trade|waiver)\b/i.test(cleanSentence) ||
+              /\b(recommend|suggest|should|would|better|prefer|avoid|focus)\b/i.test(cleanSentence) ||
+              /[A-Z][a-z]+\s+[A-Z][a-z]+.*\b(RB|QB|WR|TE|K|DST|points|projection)\b/i.test(cleanSentence)) {
+            
+            insights.push(`${league.leagueName}: ${cleanSentence}`);
           }
         }
       });
     }
+  });
+  
+  // If we didn't get enough league-specific insights, add general ones
+  if (insights.length < 3) {
+    console.log('📋 Adding general insights from full response...');
+    
+    const allSentences = cleanedResponse.split(/[.!?]+/).filter(s => s.trim().length > 15);
+    
+    allSentences.forEach(sentence => {
+      const cleanSentence = sentence.trim();
+      if (cleanSentence.length > 20 && cleanSentence.length < 200 && insights.length < 8) {
+        // Look for fantasy-relevant content
+        if (/\b(start|sit|play|bench|consider|target|pickup|drop|add|claim|trade|waiver)\b/i.test(cleanSentence) ||
+            /[A-Z][a-z]+\s+[A-Z][a-z]+.*\b(RB|QB|WR|TE|K|DST|points|projection|rank|tier)\b/i.test(cleanSentence)) {
+          
+          // Don't duplicate existing insights
+          if (!insights.some(existing => existing.includes(cleanSentence.substring(0, 30)))) {
+            insights.push(cleanSentence);
+          }
+        }
+      }
+    });
   }
   
-  // More forgiving fallback - provide some insight even if extraction fails
+  // If still no good insights, include the first few meaningful paragraphs
   if (insights.length === 0) {
-    console.warn(`⚠️ No actionable insights extracted from LLM response. Raw response: ${responseText.substring(0, 300)}`);
-    // Instead of throwing error, provide a generic but informative message
-    insights.push(`Analysis completed but no specific recommendations extracted. Check logs for details.`);
+    console.log('📋 No specific insights found, including general analysis...');
+    
+    paragraphs.slice(0, 3).forEach(paragraph => {
+      if (paragraph.trim().length > 30 && paragraph.trim().length < 400) {
+        insights.push(paragraph.trim());
+      }
+    });
   }
+  
+  console.log(`📋 Extracted ${insights.length} insights for user`);
   
   return {
-    keyInsights: insights.slice(0, 5), // Limit for display
+    keyInsights: insights.slice(0, 8), // Allow more insights to preserve analysis
     recommendations: recommendations,
-    confidence: insights.length > 2 ? 85 : 70,
-    analysis: responseText
+    confidence: insights.length > 3 ? 85 : 70,
+    analysis: cleanedResponse
   };
 }
