@@ -12,6 +12,8 @@ export async function executeAIWorkflow(args: {
   const { task, leagues, week, prompt } = args;
   
   console.log(`🤖 Executing AI workflow: ${task} for week ${week} with ${leagues.length} leagues`);
+  console.log(`📌 Initial prompt preview: "${prompt.substring(0, 100)}..."`);
+  console.log(`📊 Leagues to analyze: ${leagues.map(l => l.name || l.leagueId).join(', ')}`);
   
   try {
     // Fetch FantasyPros expert consensus data for enhanced analysis
@@ -91,8 +93,25 @@ Based on these ACTUAL rosters and EXPERT CONSENSUS RANKINGS, provide SPECIFIC re
 
     console.log('🧠 Generating analysis with real LLM...');
     
+    // Log the full prompt being sent to LLM for debugging
+    console.log('\n📝 ========== LLM PROMPT START ==========');
+    console.log('Prompt length:', enhancedPrompt.length, 'characters');
+    console.log('---');
+    console.log(enhancedPrompt);
+    console.log('📝 ========== LLM PROMPT END ==========\n');
+    
     // Use real LLM for analysis
     const llmResponse = await llmConfig.generateResponse(enhancedPrompt);
+    
+    // Log the LLM response for debugging
+    console.log('\n🤖 ========== LLM RESPONSE START ==========');
+    console.log('Response length:', (llmResponse.content || '').length, 'characters');
+    if (llmResponse.cost) {
+      console.log('Estimated cost: $', llmResponse.cost.toFixed(4));
+    }
+    console.log('---');
+    console.log(llmResponse.content || JSON.stringify(llmResponse));
+    console.log('🤖 ========== LLM RESPONSE END ==========\n');
 
     // Extract specific insights from LLM response
     const insights = extractInsightsFromLLMResponse(llmResponse, leagueData);
