@@ -576,31 +576,25 @@ async function runFullAnalysis(config: any, week: number): Promise<any> {
           name: league.name
         }],
         week: week,
-        prompt: `COMPREHENSIVE ANALYSIS for Week ${week} - ${league.name}
+        prompt: `You are an expert fantasy football analyst helping me win my ${league.name} championship.
 
-Provide a complete fantasy football analysis covering:
+CURRENT SITUATION:
+- Week ${week} of the NFL season
+- You have access to my current roster data above
+- You can search the internet for the latest information using the web_search tool
 
-1. 🏈 LINEUP OPTIMIZATION:
-   - Start/Sit recommendations for each position
-   - Specific reasoning based on matchups and projections
-   - Risk assessment for borderline decisions
+YOUR MISSION:
+Help me make the best possible decisions to win this week and advance toward a championship. Use your web search capabilities to gather current information about:
+- Player injuries and status updates
+- Weather conditions for outdoor games
+- Recent performance trends and target share changes  
+- Emerging waiver wire opportunities
+- Matchup advantages I might be missing
 
-2. 📈 WAIVER WIRE STRATEGY:
-   - Top pickup targets available in this league  
-   - Drop candidates from my current roster
-   - Priority order for waiver claims
+ANALYSIS APPROACH:
+Think like a championship-level fantasy manager. Don't just follow a template - use your judgment to focus on what matters most for my specific situation this week. Search for information that could give me an edge over opponents who rely only on projections.
 
-3. 🔄 TRADE OPPORTUNITIES:
-   - Identify potential trade partners and targets
-   - Fair trade proposals based on team needs
-   - Timing considerations for optimal trades
-
-4. 📊 PERFORMANCE ANALYSIS:
-   - Review of recent team performance 
-   - Roster strengths and weaknesses
-   - Season outlook and championship potential
-
-Focus on actionable, specific recommendations with clear reasoning.`
+Make decisions you would make if this was your own team. Be creative in finding opportunities others might miss.`
       });
 
       return {
@@ -652,21 +646,20 @@ async function runRealtimeAnalysis(config: any, week: number): Promise<any> {
           name: league.name
         }],
         week: week,
-        prompt: `REAL-TIME MONITORING for ${league.name} - Week ${week}
+        prompt: `URGENT: Real-time fantasy emergency check for ${league.name} - Week ${week}
 
-Quick status check focusing ONLY on:
+You are monitoring my roster for breaking news that requires immediate action. Use web_search to quickly check for:
 
-1. 🚨 URGENT ISSUES:
-   - Any injured starters who need immediate replacement
-   - Last-minute game time decisions affecting lineup
-   - Critical news impacting key players today
+🚨 CRITICAL ALERTS:
+- Breaking injury news affecting my starters
+- Last-minute inactive/active designations
+- Weather emergencies affecting outdoor games
+- Unexpected lineup changes or snap count news
 
-2. ⚡ IMMEDIATE ACTIONS:
-   - Must-make lineup changes before games start
-   - Emergency waiver pickups needed now
-   - Time-sensitive decisions only
+⚡ IMMEDIATE ACTION NEEDED:
+Search for any urgent developments that could impact my lineup in the next few hours. Focus ONLY on time-sensitive decisions that can't wait.
 
-Keep this brief and focused on immediate actions required within next few hours. Skip detailed analysis.`
+This is not a comprehensive analysis - just emergency monitoring for urgent roster moves needed RIGHT NOW.`
       });
 
       return {
@@ -717,28 +710,22 @@ async function runAnalyticsAnalysis(config: any, week: number): Promise<any> {
           name: league.name
         }],
         week: week,
-        prompt: `ANALYTICS ANALYSIS for ${league.name} - Week ${week}
+        prompt: `You are a data-driven fantasy analyst specializing in waiver wire opportunities and performance metrics for ${league.name} - Week ${week}.
 
-Focus specifically on data-driven insights:
+ANALYTICAL MISSION:
+Use web_search to uncover statistical trends and hidden opportunities that other managers might miss. Focus on data-driven insights rather than conventional wisdom.
 
-1. 📈 WAIVER WIRE ANALYTICS:
-   - Statistical analysis of available free agents
-   - Trending players with upward trajectory
-   - Deep sleepers based on usage and opportunity metrics
-   - Drop candidates based on declining performance
+RESEARCH AREAS:
+- Search for target share trends and snap count changes for potential waiver pickups
+- Find advanced metrics on available free agents showing upward trajectory  
+- Research usage rate changes that indicate opportunity shifts
+- Look for statistical mismatches in matchups this week
+- Identify performance trends indicating buy-low or sell-high opportunities
 
-2. 📊 PERFORMANCE METRICS:
-   - Team scoring trends and consistency analysis
-   - Position-by-position performance vs league average
-   - Strength of schedule analysis for remaining weeks
-   - Playoff positioning and scenarios
+ANALYTICAL APPROACH:
+Think like a numbers-driven analyst. Find statistical evidence to support recommendations. Dig deeper than surface-level projections to find edges based on usage, opportunity, and advanced metrics.
 
-3. 🎯 DATA-DRIVEN DECISIONS:
-   - Statistical matchup advantages for this week
-   - Target share and red zone trends
-   - Usage rate changes and opportunity analysis
-
-Emphasize numbers, trends, and statistical insights over general advice.`
+Your goal is to find data-driven insights that give me a statistical advantage in waiver claims and lineup decisions.`
       });
 
       return {
