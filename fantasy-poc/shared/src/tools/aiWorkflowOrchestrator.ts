@@ -304,7 +304,7 @@ Use web_search() to check for any breaking injury news, weather concerns, or lin
         dataSourcesUsed: expertRankings 
           ? ['ESPN API', 'FantasyPros Expert Rankings', 'Real LLM Analysis']
           : ['ESPN API', 'Real LLM Analysis (No FantasyPros)'],
-        fullLLMResponse: llmResponse.content || llmResponse.text || 'No response generated'
+        fullLLMResponse: llmResponse.content || 'No response generated'
       },
       recommendations: leagueData.map(league => ({
         leagueId: league.leagueId,
@@ -458,7 +458,7 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
         console.log(`🔍 LLM requested ${response.tool_calls.length} tool calls`);
         
         // Log each tool call in detail
-        response.tool_calls.forEach((toolCall, index) => {
+        response.tool_calls.forEach((toolCall: any, index: number) => {
           console.log(`  Tool call ${index + 1}:`);
           console.log(`    - Name: ${toolCall.name}`);
           console.log(`    - Arguments: ${JSON.stringify(toolCall.arguments)}`);
@@ -570,7 +570,7 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
   confidence: number;
   analysis: string;
 } {
-  const responseText = llmResponse.content || llmResponse.text || JSON.stringify(llmResponse);
+  const responseText = llmResponse.content || JSON.stringify(llmResponse);
   
   console.log('📋 Preserving complete LLM response for full transparency...');
   console.log(`Response length: ${responseText.length} characters`);
