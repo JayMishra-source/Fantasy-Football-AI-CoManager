@@ -191,6 +191,14 @@ export async function executePhase4Intelligence(options: Phase4Options = {}): Pr
       execution_time: new Date().toISOString(),
       intelligence_summary: result.intelligence_summary,
       insights: result,
+      // Include complete analysis results with fullLLMResponse for Discord
+      analysis_results: realAnalysisResults,
+      // Extract summary with fullLLMResponse for easy Discord access
+      summary: realAnalysisResults.leagues?.map((league: any) => ({
+        league: league.league,
+        fullLLMResponse: league.analysis?.summary?.fullLLMResponse || league.analysis?.recommendations?.[0]?.analysis || 'No response available',
+        keyInsights: league.analysis?.summary?.keyInsights || []
+      })) || [],
       data_verification: {
         espn_authenticated: config.espn.s2 && config.espn.swid ? true : false,
         espn_data_source: 'ESPN Fantasy API',
