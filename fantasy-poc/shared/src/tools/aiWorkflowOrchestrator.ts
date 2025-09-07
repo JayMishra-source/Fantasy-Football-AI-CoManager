@@ -95,14 +95,26 @@ ${leagueData.map(league => `
 ${league.leagueName} (${league.teamName}):
 
 STARTERS:
-${league.starters.map((p: any) => 
-  `• ${p.fullName} (${p.position}) - Proj: ${p.projectedPoints?.toFixed(1) || 'N/A'} pts | Owned: ${p.percentOwned?.toFixed(1) || 'N/A'}% | Started: ${p.percentStarted?.toFixed(1) || 'N/A'}%`
-).join('\n') || 'No starters found'}
+${league.starters.map((p: any) => {
+  // Fix projected points (limit to reasonable weekly range and avoid GitHub redaction)
+  const projPoints = p.projectedPoints && p.projectedPoints < 100 ? p.projectedPoints.toFixed(1) : 'N/A';
+  // Format percentages safely to avoid GitHub secret detection
+  const ownedPct = p.percentOwned ? `${Math.round(p.percentOwned)}%` : 'N/A';
+  const startedPct = p.percentStarted ? `${Math.round(p.percentStarted)}%` : 'N/A';
+  
+  return `• ${p.fullName} (${p.position}) - Proj: ${projPoints} pts | Owned: ${ownedPct} | Started: ${startedPct}`;
+}).join('\n') || 'No starters found'}
 
 BENCH:
-${league.bench.map((p: any) => 
-  `• ${p.fullName} (${p.position}) - Proj: ${p.projectedPoints?.toFixed(1) || 'N/A'} pts | Owned: ${p.percentOwned?.toFixed(1) || 'N/A'}% | Started: ${p.percentStarted?.toFixed(1) || 'N/A'}%`
-).join('\n') || 'No bench players found'}
+${league.bench.map((p: any) => {
+  // Fix projected points (limit to reasonable weekly range and avoid GitHub redaction)
+  const projPoints = p.projectedPoints && p.projectedPoints < 100 ? p.projectedPoints.toFixed(1) : 'N/A';
+  // Format percentages safely to avoid GitHub secret detection
+  const ownedPct = p.percentOwned ? `${Math.round(p.percentOwned)}%` : 'N/A';
+  const startedPct = p.percentStarted ? `${Math.round(p.percentStarted)}%` : 'N/A';
+  
+  return `• ${p.fullName} (${p.position}) - Proj: ${projPoints} pts | Owned: ${ownedPct} | Started: ${startedPct}`;
+}).join('\n') || 'No bench players found'}
 `).join('\n')}
 ${expertDataSection}
 
@@ -119,6 +131,18 @@ Using the CURRENT ROSTER DATA and EXPERT CONSENSUS RANKINGS above, provide speci
 Provide SPECIFIC start/sit decisions with reasoning that references these metrics.`;
 
     console.log('🧠 Generating analysis with real LLM...');
+    
+    // Debug player data to understand projection values
+    console.log('\n🔍 ========== SAMPLE PLAYER DATA DEBUG ==========');
+    if (leagueData[0]?.starters?.length > 0) {
+      const samplePlayer = leagueData[0].starters[0];
+      console.log('Sample player:', samplePlayer.fullName);
+      console.log('Projected Points:', samplePlayer.projectedPoints);
+      console.log('Percent Owned:', samplePlayer.percentOwned);
+      console.log('Percent Started:', samplePlayer.percentStarted);
+      console.log('Raw stats data:', (samplePlayer as any).stats || 'No stats');
+    }
+    console.log('🔍 ========== DEBUG END ==========\n');
     
     // Log the full prompt being sent to LLM for debugging
     console.log('\n📝 ========== LLM PROMPT START ==========');
