@@ -2,17 +2,27 @@ name: Fantasy Football Phase 4 - Advanced Intelligence
 
 on:
   # Scheduled runs for comprehensive intelligence
+  # NOTE: GitHub Actions uses UTC time. During NFL season (Sep-Jan):
+  # - September to early November: EDT (UTC-4)
+  # - Early November to January: EST (UTC-5)
   schedule:
-    # Advanced Intelligence Analysis - Daily at 8 AM ET
-    - cron: '0 13 * * *'
-    # Real-time monitoring - Every hour during game days (Sunday/Monday/Thursday)
-    - cron: '0 * * * 0,1,4'
-    # Weekly comprehensive analysis - Saturday 10 PM ET
-    - cron: '0 3 * * 6'
-    # Emergency monitoring - Every 15 minutes during evening (6-11 PM ET on game days)
-    - cron: '*/15 23 * * 0,1,4'
-    # Emergency monitoring - Every 15 minutes during night (11 PM-midnight ET on game days)
-    - cron: '*/15 0-4 * * 0,1,4'
+    # Daily Analysis - 8 AM Eastern (12 PM UTC during EDT, 1 PM UTC during EST)
+    - cron: '0 12 * * *'
+    
+    # Real-time monitoring - Every 2 hours on game days (Sun/Mon/Thu)
+    - cron: '0 */2 * * 0,1,4'
+    
+    # Pre-game Analysis - Sunday 12 PM Eastern (4 PM UTC during EDT, 5 PM UTC during EST)
+    - cron: '0 16 * * 0'
+    
+    # Thursday Night Football - Thursday 7 PM Eastern (11 PM UTC during EDT, 12 AM UTC during EST)
+    - cron: '0 23 * * 4'
+    
+    # Monday Night Football - Monday 7 PM Eastern (11 PM UTC during EDT, 12 AM UTC during EST)  
+    - cron: '0 23 * * 1'
+    
+    # Weekly Waiver Analysis - Tuesday 10 AM Eastern (2 PM UTC during EDT, 3 PM UTC during EST)
+    - cron: '0 14 * * 2'
   
   # Manual triggers
   workflow_dispatch:
