@@ -43,29 +43,56 @@ export class SimpleWebSearch {
       const data = response.data;
       let searchResults = '';
 
+      // Log raw response structure for debugging
+      console.log('🔍 DuckDuckGo response structure:', {
+        hasAnswer: !!data.Answer,
+        hasDefinition: !!data.Definition,
+        relatedTopics: data.RelatedTopics?.length || 0,
+        hasResults: data.Results?.length || 0,
+        hasAbstract: !!data.Abstract
+      });
+
       // Extract useful information from DuckDuckGo response
       if (data.Answer) {
-        searchResults += `Answer: ${data.Answer}\n`;
+        searchResults += `📍 Answer: ${data.Answer}\n\n`;
       }
 
       if (data.Definition) {
-        searchResults += `Definition: ${data.Definition}\n`;
+        searchResults += `📖 Definition: ${data.Definition}\n\n`;
+      }
+
+      if (data.Abstract) {
+        searchResults += `📝 Summary: ${data.Abstract}\n\n`;
       }
 
       if (data.RelatedTopics && data.RelatedTopics.length > 0) {
-        searchResults += 'Related Information:\n';
-        data.RelatedTopics.slice(0, 3).forEach((topic: any, index: number) => {
+        searchResults += '🔗 Related Information:\n';
+        data.RelatedTopics.slice(0, 5).forEach((topic: any, index: number) => {
           if (topic.Text) {
-            searchResults += `${index + 1}. ${topic.Text.substring(0, 200)}...\n`;
+            searchResults += `${index + 1}. ${topic.Text.substring(0, 300)}\n`;
           }
         });
+        searchResults += '\n';
       }
 
+      // Try to get web results if available
+      if (data.Results && data.Results.length > 0) {
+        searchResults += '🌐 Web Results:\n';
+        data.Results.slice(0, 3).forEach((result: any, index: number) => {
+          if (result.Text) {
+            searchResults += `${index + 1}. ${result.Text.substring(0, 200)}\n`;
+          }
+        });
+        searchResults += '\n';
+      }
+
+      // If still no useful content, provide fallback with search metadata
       if (!searchResults.trim()) {
-        searchResults = `No specific results found for "${query}", but search was successful.`;
+        searchResults = `🔍 Search performed for "${query}" - DuckDuckGo returned structured data but no direct text results. This may indicate the topic is very current or specific. Try more general search terms.`;
       }
 
       console.log(`✅ Web search completed: ${searchResults.length} characters of results`);
+      console.log(`📄 Search results preview: ${searchResults.substring(0, 200)}...`);
       
       return {
         success: true,

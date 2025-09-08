@@ -488,6 +488,7 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
               
               if (searchResult.success && searchResult.results) {
                 console.log(`  - Results length: ${searchResult.results.length} chars`);
+                console.log(`  - Results preview: ${searchResult.results.substring(0, 200)}...`);
                 toolResults += `\nWeb search results for "${query}":\n${searchResult.results}\n`;
               } else {
                 console.log(`  - Search failed: ${searchResult.error}`);
@@ -507,18 +508,19 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
         console.log(`🔄 Tool execution completed, adding results to conversation`);
         if (toolResults) {
           console.log(`✅ Tool results available: ${toolResults.length} chars`);
-          const userMessage = `Here are the search results:\n${toolResults}\n\nPlease provide your final fantasy analysis incorporating this information.`;
+          const userMessage = `🔍 CURRENT WEB SEARCH RESULTS:\n${toolResults}\n\n📋 INSTRUCTIONS: Now provide your complete fantasy analysis incorporating this current information. Be specific about how the search results impact your recommendations. If the search results don't provide useful information for fantasy decisions, acknowledge that and proceed with your analysis based on the roster data and expert rankings provided.`;
           messages.push({ 
             role: 'user', 
             content: userMessage
           });
           console.log(`💬 Added tool results to conversation (${userMessage.length} chars)`);
+          console.log(`📄 Tool results sample: ${toolResults.substring(0, 300)}...`);
         } else {
           console.log(`⚠️ No tool results to add`);
           // No successful searches, ask for final analysis
           messages.push({ 
             role: 'user', 
-            content: 'Please provide your final fantasy analysis based on the available data.'
+            content: 'Please provide your final fantasy analysis based on the available roster data and expert rankings.'
           });
           console.log(`💬 Added fallback message to conversation`);
         }
