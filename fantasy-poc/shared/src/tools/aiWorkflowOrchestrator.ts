@@ -572,107 +572,20 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
 } {
   const responseText = llmResponse.content || JSON.stringify(llmResponse);
   
-  console.log('📋 Preserving complete LLM response for full transparency...');
+  console.log('📋 Sending COMPLETE LLM response directly to Discord (no summarization)...');
   console.log(`Response length: ${responseText.length} characters`);
   
-  // Clean up response formatting but preserve structure
+  // Clean up response formatting but preserve ALL content
   const cleanedResponse = responseText
-    .replace(/\n\s*\n\s*\n/g, '\n\n') // Remove excessive line breaks
+    .replace(/\n\s*\n\s*\n/g, '\n\n') // Remove excessive line breaks only
     .trim();
   
-  // Extract actual insights from the LLM response content
-  const insights: string[] = [];
-  const recommendations: any[] = [];
-  
-  console.log('🔍 Extracting real insights from LLM response content...');
-  
-  // Split response into sentences and extract meaningful recommendations
-  const sentences = responseText.split(/[.!?]+/).filter((s: string) => s.trim().length > 20);
-  
-  // Extract key actionable insights from the response
-  const actionableInsights = sentences.filter((sentence: string) => {
-    const lowerSentence = sentence.toLowerCase();
-    return (
-      lowerSentence.includes('start') ||
-      lowerSentence.includes('bench') ||
-      lowerSentence.includes('pickup') ||
-      lowerSentence.includes('drop') ||
-      lowerSentence.includes('recommend') ||
-      lowerSentence.includes('should') ||
-      lowerSentence.includes('avoid') ||
-      lowerSentence.includes('target') ||
-      lowerSentence.includes('consider')
-    ) && !lowerSentence.includes('complete') && !lowerSentence.includes('analysis');
-  }).slice(0, 6); // Limit to top 6 actionable insights
-  
-  if (actionableInsights.length > 0) {
-    insights.push(...actionableInsights.map((insight: string) => insight.trim()));
-    
-    // Create recommendations from the insights
-    leagueData.forEach((league) => {
-      const leagueSpecificInsights = actionableInsights.filter((insight: string) => 
-        insight.toLowerCase().includes(league.leagueName.toLowerCase()) ||
-        insight.toLowerCase().includes('qb') ||
-        insight.toLowerCase().includes('rb') ||
-        insight.toLowerCase().includes('wr') ||
-        insight.toLowerCase().includes('te') ||
-        insight.toLowerCase().includes('def') ||
-        insight.toLowerCase().includes('k')
-      );
-      
-      recommendations.push({
-        league: league.leagueName,
-        type: 'actionable_insights',
-        priority: 'high',
-        insights: leagueSpecificInsights.slice(0, 3),
-        summary: `${leagueSpecificInsights.length} specific recommendations extracted`
-      });
-    });
-  }
-  
-  // If no specific insights found, extract key phrases or bullets from response
-  if (insights.length === 0) {
-    console.log('📋 No actionable insights found, extracting key phrases...');
-    
-    // Look for bullet points or numbered lists in the response
-    const bullets = responseText.match(/^[\s]*[•\-\*]\s*(.+)$/gm) || [];
-    const numbered = responseText.match(/^[\s]*\d+\.?\s*(.+)$/gm) || [];
-    const keyPhrases = [...bullets, ...numbered].slice(0, 4);
-    
-    if (keyPhrases.length > 0) {
-      insights.push(...keyPhrases.map((phrase: string) => phrase.replace(/^[\s]*[•\-\*\d\.]\s*/, '').trim()));
-    } else {
-      // Last resort: extract first few meaningful lines
-      const meaningfulLines = responseText.split('\n')
-        .filter((line: string) => line.trim().length > 30 && 
-                       !line.toLowerCase().includes('analysis') &&
-                       !line.toLowerCase().includes('complete'))
-        .slice(0, 3);
-      
-      if (meaningfulLines.length > 0) {
-        insights.push(...meaningfulLines.map((line: string) => line.trim()));
-      } else {
-        insights.push('AI analysis completed - check full response for details');
-      }
-    }
-    
-    // Add basic recommendations for all leagues
-    leagueData.forEach((league) => {
-      recommendations.push({
-        league: league.leagueName,
-        type: 'analysis_completed',
-        priority: 'medium',
-        summary: 'Analysis completed - review full response'
-      });
-    });
-  }
-  
-  console.log(`📋 Extracted ${insights.length} insights for user`);
-  
+  // Return minimal structure with FULL response
+  // keyInsights will be empty to prevent showing summary in Discord
   return {
-    keyInsights: insights.slice(0, 8), // Minimal summary insights
-    recommendations: recommendations,
-    confidence: insights.length > 3 ? 85 : 70,
-    analysis: cleanedResponse // COMPLETE unfiltered LLM response preserved here
+    keyInsights: [], // Empty to prevent Discord from showing summary
+    recommendations: [], // Empty to avoid fragmenting the response
+    confidence: 95, // High confidence since we're showing full response
+    analysis: cleanedResponse // COMPLETE unfiltered LLM response for Discord
   };
 }
