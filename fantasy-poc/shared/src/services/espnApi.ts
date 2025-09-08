@@ -5,12 +5,12 @@ export class ESPNApiService {
   private axios: AxiosInstance;
   private baseURL = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
   private cookies: ESPNCookies | null = null;
-  private year: number = 2024;
+  private year: number = 2025;
 
-  // Get current NFL week for 2024 season
+  // Get current NFL week for 2025 season
   private getCurrentWeek(): number {
     const now = new Date();
-    const seasonStart = new Date('2024-09-05'); // NFL season started first Thursday of September 2024
+    const seasonStart = new Date('2025-09-04'); // NFL season typically starts first Thursday of September
     const timeDiff = now.getTime() - seasonStart.getTime();
     const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
     
