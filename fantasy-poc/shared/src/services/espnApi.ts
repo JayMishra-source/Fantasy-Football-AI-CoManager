@@ -5,12 +5,12 @@ export class ESPNApiService {
   private axios: AxiosInstance;
   private baseURL = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
   private cookies: ESPNCookies | null = null;
-  private year: number = 2025;
+  private year: number = 2024;
 
-  // Get current NFL week for 2025 season
+  // Get current NFL week for 2024 season
   private getCurrentWeek(): number {
     const now = new Date();
-    const seasonStart = new Date('2025-09-04'); // NFL season typically starts first Thursday of September
+    const seasonStart = new Date('2024-09-05'); // NFL season started first Thursday of September 2024
     const timeDiff = now.getTime() - seasonStart.getTime();
     const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
     
@@ -161,27 +161,63 @@ export class ESPNApiService {
   }
 
   async getAvailablePlayers(leagueId: string): Promise<Player[]> {
-    const response = await this.axios.get(
-      `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
-      { 
-        params: { 
-          view: 'kona_player_info',
-          'x-fantasy-filter': JSON.stringify({
-            players: {
-              filterStatus: {
-                value: ['FREEAGENT', 'WAIVERS']
+    try {
+      const response = await this.axios.get(
+        `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
+        { 
+          params: { 
+            view: 'kona_player_info'
+          },
+          headers: {
+            'X-Fantasy-Filter': JSON.stringify({
+              players: {
+                filterStatus: {
+                  value: ['FREEAGENT', 'WAIVERS']
+                }
+              }
+            })
+          }
+        }
+      );
+      
+      const players = response.data.players || [];
+      return players
+        .map((p: any) => this.processPlayerData(p))
+        .filter((p: Player) => (p.percentOwned || 0) < 50); // Focus on widely available players
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        // Try alternative approach without the filter for troubleshooting
+        console.warn('⚠️ Fantasy filter failed, trying without filter...');
+        try {
+          const response = await this.axios.get(
+            `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
+            { 
+              params: { 
+                view: 'kona_player_info'
               }
             }
-          })
-          // Remove scoringPeriodId: 0 to get current season data
-        } 
+          );
+          
+          const players = response.data.players || [];
+          return players
+            .map((p: any) => this.processPlayerData(p))
+            .filter((p: Player) => (p.percentOwned || 0) < 95) // Only exclude universally owned players
+            .slice(0, 200); // Limit to reasonable number of players
+        } catch (fallbackError: any) {
+          throw new Error(`ESPN Available Players API failed: ${error.message} (Status: ${error.response?.status})`);
+        }
+      } else if (error.response?.status === 401) {
+        throw new Error(`ESPN Authentication Failed (401): Cannot access available players for league ${leagueId}. ESPN cookies (ESPN_S2/SWID) are invalid or expired.`);
+      } else if (error.response?.status === 403) {
+        throw new Error(`ESPN Access Forbidden (403): No permission to view available players for league ${leagueId}.`);
+      } else if (error.response?.status === 404) {
+        throw new Error(`ESPN League Not Found (404): League ${leagueId} doesn't exist or is not accessible.`);
+      } else if (error.response) {
+        throw new Error(`ESPN Available Players API Error (${error.response.status}): ${error.response.statusText || 'Unknown error'} - League: ${leagueId}`);
+      } else {
+        throw new Error(`ESPN Available Players Request Failed: ${error.message} - League: ${leagueId}`);
       }
-    );
-    
-    const players = response.data.players || [];
-    return players
-      .map((p: any) => this.processPlayerData(p))
-      .filter((p: Player) => (p.percentOwned || 0) < 50); // Focus on widely available players
+    }
   }
 
   async getMatchups(leagueId: string, week: number) {
