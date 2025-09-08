@@ -653,17 +653,20 @@ jobs:
                   local temp_chunk="${remaining_content:0:$max_length}"
                   local break_point=$max_length
                   
-                  # Try to find a good breaking point
-                  if [[ "$temp_chunk" =~ (.*)$'\n\n'([^$'\n']*$) ]]; then
-                    # Break at double newline (paragraph break)
-                    break_point=$((${#BASH_REMATCH[1]} + 2))
-                  elif [[ "$temp_chunk" =~ (.*)$'\n'([^$'\n']*$) ]]; then
-                    # Break at single newline
-                    break_point=$((${#BASH_REMATCH[1]} + 1))
-                  elif [[ "$temp_chunk" =~ (.*[.!?]) ([A-Z].*)$ ]]; then
-                    # Break at sentence end
-                    break_point=${#BASH_REMATCH[1]}
+                  # Simple approach: find the last space or newline to avoid breaking words
+                  local search_start=$((max_length - 200))  # Look in last 200 chars for good break
+                  if [[ $search_start -lt 0 ]]; then
+                    search_start=0
                   fi
+                  
+                  # Look backwards from max_length for a good break point
+                  for ((i=max_length; i>=search_start; i--)); do
+                    local char="${remaining_content:$i:1}"
+                    if [[ "$char" == $'\n' ]] || [[ "$char" == " " ]] || [[ "$char" == "." ]] || [[ "$char" == "!" ]] || [[ "$char" == "?" ]]; then
+                      break_point=$((i + 1))
+                      break
+                    fi
+                  done
                   
                   chunk="${remaining_content:0:$break_point}"
                   remaining_content="${remaining_content:$break_point}"
