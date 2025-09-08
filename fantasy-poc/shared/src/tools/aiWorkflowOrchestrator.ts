@@ -218,6 +218,37 @@ ${league.bench.map((p: any) => {
   
   return `• ${p.fullName} (${p.position}) - ${projDesc} | ${ownedDesc} | ${startedDesc}`;
 }).join('\n') || 'No bench players found'}
+
+AVAILABLE WAIVER WIRE/FREE AGENT PLAYERS BY POSITION:
+${league.availablePlayers ? Object.entries(league.availablePlayers).map(([position, players]: [string, any[]]) => 
+  `${position}: ${players.length > 0 ? players.map((p: any) => {
+    // Format waiver wire players similar to roster players
+    let projDesc = 'Unknown projection';
+    if (p.projectedPoints !== undefined && p.projectedPoints !== null) {
+      const pts = p.projectedPoints;
+      const ptsInWords = pts.toFixed(1).replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+      
+      let category = '';
+      if (pts < 2) category = 'Very Low';
+      else if (pts < 6) category = 'Low'; 
+      else if (pts < 12) category = 'Moderate';
+      else if (pts < 18) category = 'Good';
+      else if (pts < 25) category = 'High';
+      else category = 'Very High';
+      
+      projDesc = `${category} (${ptsInWords} pts)`;
+    }
+    
+    let ownedDesc = 'Available';
+    if (p.percentOwned !== undefined) {
+      const ownedPct = Math.round(p.percentOwned);
+      const ownedInWords = ownedPct.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+      ownedDesc = `${ownedInWords}% owned`;
+    }
+    
+    return `• ${p.fullName} - ${projDesc} | ${ownedDesc}`;
+  }).join('\n') : 'None available'}`
+).join('\n') : 'Waiver wire data not available'}
 `).join('\n')}
 ${expertDataSection}
 
