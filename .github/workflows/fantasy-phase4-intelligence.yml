@@ -561,20 +561,144 @@ jobs:
           fi
           
           
+          # Function to send Discord messages in chunks
+          send_discord_messages() {
+            local content="$1"
+            local title="$2"
+            local status="$3"
+            local color="$4"
+            local mode="$5"
+            local week="$6"
+            local grade="$7"
+            local footer="$8"
+            local timestamp="$9"
+            
+            # Discord embed description limit is 4096 characters
+            local max_length=3900  # Leave some buffer for formatting
+            local content_length=${#content}
+            
+            echo "📝 Content length: $content_length chars, Discord limit: 4096"
+            
+            if [[ $content_length -le $max_length ]]; then
+              # Single message - fits in one embed
+              echo "📨 Sending single Discord message ($content_length chars)"
+              jq -n \
+                --arg title "$title" \
+                --arg description "$content" \
+                --argjson color "$color" \
+                --arg mode "$mode" \
+                --arg week "$week" \
+                --arg grade "$grade" \
+                --arg footer "$footer" \
+                --arg timestamp "$timestamp" \
+                '{
+                  embeds: [{
+                    title: $title,
+                    description: $description,
+                    color: $color,
+                    fields: [
+                      {name: "🎯 Intelligence Mode", value: $mode, inline: true},
+                      {name: "📅 NFL Week", value: $week, inline: true},
+                      {name: "🏆 Performance Grade", value: $grade, inline: true}
+                    ],
+                    footer: {text: $footer},
+                    timestamp: $timestamp
+                  }]
+                }' | curl -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" -d @-
+            else
+              # Multiple messages needed
+              echo "📨 Sending multiple Discord messages (content too long: $content_length chars)"
+              
+              # Send header message first
+              jq -n \
+                --arg title "$title" \
+                --arg description "📊 **Fantasy Football Analysis - Week $week**" \
+                --argjson color "$color" \
+                --arg mode "$mode" \
+                --arg week "$week" \
+                --arg grade "$grade" \
+                --arg footer "$footer" \
+                --arg timestamp "$timestamp" \
+                '{
+                  embeds: [{
+                    title: $title,
+                    description: $description,
+                    color: $color,
+                    fields: [
+                      {name: "🎯 Intelligence Mode", value: $mode, inline: true},
+                      {name: "📅 NFL Week", value: $week, inline: true},
+                      {name: "🏆 Performance Grade", value: $grade, inline: true}
+                    ],
+                    footer: {text: $footer},
+                    timestamp: $timestamp
+                  }]
+                }' | curl -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" -d @-
+              
+              # Sleep briefly between messages
+              sleep 1
+              
+              # Split content into chunks and send
+              local remaining_content="$content"
+              local part_num=1
+              
+              while [[ ${#remaining_content} -gt 0 ]]; do
+                local chunk=""
+                
+                if [[ ${#remaining_content} -le $max_length ]]; then
+                  # Last chunk
+                  chunk="$remaining_content"
+                  remaining_content=""
+                else
+                  # Find a good break point (prefer breaking at paragraph or section)
+                  local temp_chunk="${remaining_content:0:$max_length}"
+                  local break_point=$max_length
+                  
+                  # Try to find a good breaking point
+                  if [[ "$temp_chunk" =~ (.*)$'\n\n'([^$'\n']*$) ]]; then
+                    # Break at double newline (paragraph break)
+                    break_point=$((${#BASH_REMATCH[1]} + 2))
+                  elif [[ "$temp_chunk" =~ (.*)$'\n'([^$'\n']*$) ]]; then
+                    # Break at single newline
+                    break_point=$((${#BASH_REMATCH[1]} + 1))
+                  elif [[ "$temp_chunk" =~ (.*[.!?]) ([A-Z].*)$ ]]; then
+                    # Break at sentence end
+                    break_point=${#BASH_REMATCH[1]}
+                  fi
+                  
+                  chunk="${remaining_content:0:$break_point}"
+                  remaining_content="${remaining_content:$break_point}"
+                fi
+                
+                echo "📨 Sending part $part_num (${#chunk} chars)"
+                
+                # Send the chunk
+                jq -n \
+                  --arg description "$chunk" \
+                  --argjson color "$color" \
+                  '{
+                    embeds: [{
+                      description: $description,
+                      color: $color
+                    }]
+                  }' | curl -X POST "$DISCORD_WEBHOOK_URL" -H "Content-Type: application/json" -d @-
+                
+                part_num=$((part_num + 1))
+                
+                # Brief pause between chunks
+                if [[ ${#remaining_content} -gt 0 ]]; then
+                  sleep 1
+                fi
+              done
+            fi
+          }
+          
           # Build description content - PRIORITIZE full LLM response
           DESCRIPTION=""
           
           # Check if we have the full LLM response
           if [[ -n "$FULL_LLM_RESPONSE" && ${#FULL_LLM_RESPONSE} -gt 50 ]]; then
             echo "✅ Using FULL LLM RESPONSE for Discord (${#FULL_LLM_RESPONSE} chars)"
-            # We have the full response - show ONLY that, nothing else
-            # Increase limit for multi-league responses
-            if [[ ${#FULL_LLM_RESPONSE} -gt 3500 ]]; then
-              TRUNCATED_RESPONSE="${FULL_LLM_RESPONSE:0:3500}..."
-              DESCRIPTION="$TRUNCATED_RESPONSE"$'\n\n📄 **Full analysis continues in GitHub Actions logs**'
-            else
-              DESCRIPTION="$FULL_LLM_RESPONSE"
-            fi
+            DESCRIPTION="$FULL_LLM_RESPONSE"
           else
             echo "⚠️ No full LLM response found, using fallback insights"
             # Fallback if no full response available
@@ -585,12 +709,8 @@ jobs:
                 DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
               done <<< "$INSIGHTS"
             fi
-          fi
-          
-          # Skip urgent actions, next actions, and data verification if we have full LLM response
-          # They just fragment the content
-          if [[ -z "$FULL_LLM_RESPONSE" ]]; then
-            # Only add these sections if we DON'T have the full response
+            
+            # Add additional sections for fallback
             if [[ -n "$URGENT_ACTIONS" ]]; then
               DESCRIPTION="$DESCRIPTION"$'\n\n🚨 **Urgent Actions:**'
               while IFS= read -r line; do
@@ -610,33 +730,12 @@ jobs:
             fi
           fi
           
-          # Send Discord notification using jq for proper JSON formatting
+          # Send Discord notifications with chunking support
           if [[ -n "$DISCORD_WEBHOOK_URL" ]]; then
-            jq -n \
-              --arg title "🧠 Phase 4 Advanced Intelligence - $STATUS" \
-              --arg description "$DESCRIPTION" \
-              --argjson color "$COLOR" \
-              --arg mode "$MODE" \
-              --arg week "$WEEK" \
-              --arg grade "$GRADE" \
-              --arg footer "Fantasy AI Phase 4 Advanced Intelligence • $(date +'%b %d, %Y at %I:%M %p UTC')" \
-              --arg timestamp "$(date -Iseconds)" \
-              '{
-                embeds: [{
-                  title: $title,
-                  description: $description,
-                  color: $color,
-                  fields: [
-                    {name: "🎯 Intelligence Mode", value: $mode, inline: true},
-                    {name: "📅 NFL Week", value: $week, inline: true},
-                    {name: "🏆 Performance Grade", value: $grade, inline: true}
-                  ],
-                  footer: {text: $footer},
-                  timestamp: $timestamp
-                }]
-              }' | curl -X POST "$DISCORD_WEBHOOK_URL" \
-                -H "Content-Type: application/json" \
-                -d @-
+            FOOTER_TEXT="Fantasy AI Phase 4 Advanced Intelligence • $(date +'%b %d, %Y at %I:%M %p UTC')"
+            TIMESTAMP_VALUE="$(date -Iseconds)"
+            
+            send_discord_messages "$DESCRIPTION" "🧠 Phase 4 Advanced Intelligence - $STATUS" "$STATUS" "$COLOR" "$MODE" "$WEEK" "$GRADE" "$FOOTER_TEXT" "$TIMESTAMP_VALUE"
           fi
           
           echo "📨 Notifications sent successfully"
