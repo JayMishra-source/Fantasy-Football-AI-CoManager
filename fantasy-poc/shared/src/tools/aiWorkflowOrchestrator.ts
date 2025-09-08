@@ -265,23 +265,31 @@ Review the roster like we're sitting together planning this week's lineup. Go po
 
 **POSITION-BY-POSITION REVIEW:**
 
-1. **QUARTERBACK**: Look at my current starter vs bench QBs. Should I start someone else? Any waiver QBs worth grabbing?
+1. **QUARTERBACK**: Look at my current starter vs bench QBs. Should I start someone else? Any waiver QBs worth grabbing? If yes, specify WHO TO DROP.
 
-2. **RUNNING BACKS**: Check my RB1, RB2, and FLEX options. Are my starters the highest projected? Should I swap anyone from the bench? Any waiver RBs to target?
+2. **RUNNING BACKS**: Check my RB1, RB2, and FLEX options. Are my starters the highest projected? Should I swap anyone from the bench? Any waiver RBs to target? If adding an RB, specify WHO TO DROP.
 
-3. **WIDE RECEIVERS**: Review my WR1, WR2, and FLEX spots. Who has the best matchups? Should I start different WRs from my bench? Any waiver WRs to consider?
+3. **WIDE RECEIVERS**: Review my WR1, WR2, and FLEX spots. Who has the best matchups? Should I start different WRs from my bench? Any waiver WRs to consider? If adding a WR, specify WHO TO DROP.
 
-4. **TIGHT END**: Is my TE starter the right choice? Better option on my bench or waivers?
+4. **TIGHT END**: Is my TE starter the right choice? Better option on my bench or waivers? If adding a TE, specify WHO TO DROP.
 
 5. **FLEX POSITIONS**: Compare my RBs vs WRs for FLEX spots. Who has the highest ceiling this week?
 
-6. **DEFENSE/KICKER**: Any better streaming options on waivers?
+6. **DEFENSE/KICKER**: Any better streaming options on waivers? If streaming, specify WHO TO DROP.
 
 **GIVE ME:**
 - WHO TO START at each position (with brief reason)  
 - WHO TO BENCH (and why)
-- TOP 3 WAIVER PICKUPS to consider (if any)
+- TOP 3 WAIVER PICKUPS to consider (if any) - **IMPORTANT: For each waiver pickup, specify WHO TO DROP from my current roster**
 - Any lineup swaps between starters and bench
+
+**WAIVER WIRE FORMAT:**
+When recommending waiver pickups, use this format:
+"ADD [Player Name] ([Position]) - [Reason]
+DROP [Player Name] ([Position]) - [Why they're droppable]"
+
+Example: "ADD Mike Gesicki (TE) - Higher upside than current option
+DROP Brenton Strange (TE) - Lower projection and limited role"
 
 Use web_search() to check for any breaking injury news, weather concerns, or lineup changes that could affect my decisions.`;
 
