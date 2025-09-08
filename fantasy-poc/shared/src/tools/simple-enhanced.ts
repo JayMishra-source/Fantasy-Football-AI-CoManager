@@ -56,6 +56,7 @@ export async function getMyRoster(args: { leagueId: string; teamId: string }) {
     teamId,
     starters: roster.starters,
     bench: roster.bench,
+    injuredReserve: roster.injuredReserve || [],
     availablePlayers: topAvailableByPosition,
     message: `Roster retrieved with ${totalWaiverPlayers} top waiver wire options by position`
   };

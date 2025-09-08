@@ -70,6 +70,7 @@ export async function executeAIWorkflow(args: {
             starters: roster.starters || [],
             bench: roster.bench || [],
             availablePlayers: rosterWithWaivers.availablePlayers || {},
+            injuredReserve: roster.injuredReserve || [],
             roster: roster
           };
         } catch (error: any) {
@@ -227,6 +228,49 @@ ${league.bench.map((p: any) => {
   return `• ${p.fullName} (${p.position}) - ${projDesc} | ${ownedDesc} | ${startedDesc}`;
 }).join('\n') || 'No bench players found'}
 
+INJURED RESERVE (IR):
+${league.injuredReserve && league.injuredReserve.length > 0 ? league.injuredReserve.map((p: any) => {
+  // Format IR players similar to bench players
+  let projDesc = 'Unknown projection';
+  if (p.projectedPoints !== undefined && p.projectedPoints !== null) {
+    const pts = p.projectedPoints;
+    const ptsInWords = pts.toFixed(1).replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    let category = '';
+    if (pts < 2) category = 'Very Low';
+    else if (pts < 6) category = 'Low';
+    else if (pts < 12) category = 'Moderate';
+    else if (pts < 18) category = 'Good';
+    else if (pts < 25) category = 'High';
+    else category = 'Very High';
+    
+    projDesc = `${category} (${ptsInWords} pts)`;
+  }
+  
+  let ownedDesc = 'Unknown ownership';
+  if (p.percentOwned !== undefined) {
+    const ownedPct = Math.round(p.percentOwned);
+    const ownedInWords = ownedPct.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    
+    let category = '';
+    if (ownedPct < 10) category = 'Rarely owned';
+    else if (ownedPct < 30) category = 'Lightly owned';
+    else if (ownedPct < 60) category = 'Moderately owned';
+    else if (ownedPct < 90) category = 'Widely owned';
+    else category = 'Nearly universal';
+    
+    ownedDesc = `${category} (${ownedInWords} percent)`;
+  }
+  
+  // Add injury status for IR players
+  let injuryInfo = '';
+  if (p.injuryStatus) {
+    injuryInfo = ` | Injury: ${p.injuryStatus}`;
+  }
+  
+  return `• ${p.fullName} (${p.position}) - ${projDesc} | ${ownedDesc}${injuryInfo}`;
+}).join('\n') : 'No players on injured reserve'}
+
 AVAILABLE WAIVER WIRE/FREE AGENT PLAYERS BY POSITION:
 ${league.availablePlayers ? Object.entries(league.availablePlayers).map(([position, players]: [string, any[]]) => 
   `${position}: ${players.length > 0 ? players.map((p: any) => {
@@ -277,11 +321,14 @@ Review the roster like we're sitting together planning this week's lineup. Go po
 
 6. **DEFENSE/KICKER**: Any better streaming options on waivers? If streaming, specify WHO TO DROP.
 
+7. **INJURED RESERVE (IR)**: Check my IR players' injury status. Are any eligible to return from IR? If so, recommend WHO TO DROP from active roster to make room.
+
 **GIVE ME:**
 - WHO TO START at each position (with brief reason)  
 - WHO TO BENCH (and why)
 - TOP 3 WAIVER PICKUPS to consider (if any) - **IMPORTANT: For each waiver pickup, specify WHO TO DROP from my current roster**
 - Any lineup swaps between starters and bench
+- **IR MOVES**: If any IR players are ready to return, specify WHO TO DROP from active roster to activate them
 
 **WAIVER WIRE FORMAT:**
 When recommending waiver pickups, use this format:
@@ -290,6 +337,14 @@ DROP [Player Name] ([Position]) - [Why they're droppable]"
 
 Example: "ADD Mike Gesicki (TE) - Higher upside than current option
 DROP Brenton Strange (TE) - Lower projection and limited role"
+
+**IR ACTIVATION FORMAT:**
+When recommending IR activations, use this format:
+"ACTIVATE [Player Name] ([Position]) from IR - [Reason/Status]
+DROP [Player Name] ([Position]) - [Why they're droppable to make room]"
+
+Example: "ACTIVATE Cooper Kupp (WR) from IR - Expected to play this week, cleared injury report
+DROP Tyler Lockett (WR) - Inconsistent production and tough schedule"
 
 Use web_search() to check for any breaking injury news, weather concerns, or lineup changes that could affect my decisions.`;
 

@@ -125,8 +125,9 @@ export class ESPNApiService {
       return {
         teamId: parseInt(teamId),
         teamName: team.name || `Team ${teamId}`,
-        starters: roster.filter((entry: any) => entry.lineupSlotId !== 20).map(processPlayer),
-        bench: roster.filter((entry: any) => entry.lineupSlotId === 20).map(processPlayer)
+        starters: roster.filter((entry: any) => entry.lineupSlotId !== 20 && entry.lineupSlotId !== 23).map(processPlayer),
+        bench: roster.filter((entry: any) => entry.lineupSlotId === 20).map(processPlayer),
+        injuredReserve: roster.filter((entry: any) => entry.lineupSlotId === 23).map(processPlayer)
       };
     } catch (error: any) {
       if (error.message.includes('Team') && error.message.includes('not found')) {
