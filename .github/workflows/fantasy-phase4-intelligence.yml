@@ -466,13 +466,27 @@ jobs:
               echo "Summary array contents:"
               cat "$RESULTS_FILE" | jq '.summary[]' 2>/dev/null | head -2
               
-              # Try multiple extraction paths with debugging
-              FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[0].fullLLMResponse // empty' 2>/dev/null)
-              echo "Path 1 (.summary[0].fullLLMResponse): Found ${#FULL_LLM_RESPONSE} characters"
+              # Try to combine BOTH league responses first
+              echo "Attempting to combine both league responses..."
+              LEAGUE_1_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[0].fullLLMResponse // empty' 2>/dev/null)
+              LEAGUE_2_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[1].fullLLMResponse // empty' 2>/dev/null)
               
-              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
-                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[1].fullLLMResponse // empty' 2>/dev/null)
-                echo "Path 2 (.summary[1].fullLLMResponse - second league): Found ${#FULL_LLM_RESPONSE} characters"
+              echo "League 1 response: ${#LEAGUE_1_RESPONSE} characters"
+              echo "League 2 response: ${#LEAGUE_2_RESPONSE} characters"
+              
+              if [[ -n "$LEAGUE_1_RESPONSE" && -n "$LEAGUE_2_RESPONSE" ]]; then
+                # Get league names for headers
+                LEAGUE_1_NAME=$(cat "$RESULTS_FILE" | jq -r '.summary[0].league // "Main League"' 2>/dev/null)
+                LEAGUE_2_NAME=$(cat "$RESULTS_FILE" | jq -r '.summary[1].league // "Secondary League"' 2>/dev/null)
+                
+                FULL_LLM_RESPONSE="**📊 ${LEAGUE_1_NAME}:**"$'\n\n'"${LEAGUE_1_RESPONSE}"$'\n\n'"**📊 ${LEAGUE_2_NAME}:**"$'\n\n'"${LEAGUE_2_RESPONSE}"
+                echo "✅ Combined both leagues: ${#FULL_LLM_RESPONSE} total characters"
+              elif [[ -n "$LEAGUE_1_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE="$LEAGUE_1_RESPONSE"
+                echo "Using League 1 only: ${#FULL_LLM_RESPONSE} characters"
+              elif [[ -n "$LEAGUE_2_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE="$LEAGUE_2_RESPONSE"
+                echo "Using League 2 only: ${#FULL_LLM_RESPONSE} characters"
               fi
               
               if [[ -z "$FULL_LLM_RESPONSE" ]]; then
@@ -507,27 +521,7 @@ jobs:
                 echo "Deep search: Found ${#FULL_LLM_RESPONSE} characters"
               fi
               
-              # Always try to combine multiple league responses for complete analysis
-              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
-                echo "Building combined multi-league response..."
-                LEAGUE_1_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[0].fullLLMResponse // empty' 2>/dev/null)
-                LEAGUE_2_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[1].fullLLMResponse // empty' 2>/dev/null)
-                
-                if [[ -n "$LEAGUE_1_RESPONSE" && -n "$LEAGUE_2_RESPONSE" ]]; then
-                  # Get league names for headers
-                  LEAGUE_1_NAME=$(cat "$RESULTS_FILE" | jq -r '.summary[0].league // "League 1"' 2>/dev/null)
-                  LEAGUE_2_NAME=$(cat "$RESULTS_FILE" | jq -r '.summary[1].league // "League 2"' 2>/dev/null)
-                  
-                  FULL_LLM_RESPONSE="**📊 ${LEAGUE_1_NAME}:**"$'\n\n'"${LEAGUE_1_RESPONSE}"$'\n\n'"**📊 ${LEAGUE_2_NAME}:**"$'\n\n'"${LEAGUE_2_RESPONSE}"
-                  echo "Combined multi-league response: ${#FULL_LLM_RESPONSE} characters"
-                elif [[ -n "$LEAGUE_1_RESPONSE" ]]; then
-                  FULL_LLM_RESPONSE="$LEAGUE_1_RESPONSE"
-                  echo "Single league response: ${#FULL_LLM_RESPONSE} characters"
-                elif [[ -n "$LEAGUE_2_RESPONSE" ]]; then
-                  FULL_LLM_RESPONSE="$LEAGUE_2_RESPONSE"
-                  echo "Single league response (2nd): ${#FULL_LLM_RESPONSE} characters"
-                fi
-              fi
+              # Skip - combination logic moved to the top
               
               if [[ -z "$FULL_LLM_RESPONSE" ]]; then
                 echo "❌ No complete LLM response found in JSON structure"
