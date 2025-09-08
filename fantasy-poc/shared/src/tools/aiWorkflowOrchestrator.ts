@@ -1,7 +1,7 @@
 import { espnApi } from '../services/espnApi.js';
 import { fantasyProsApi } from '../services/fantasyProsApi.js';
 import { llmConfig } from '../config/llm-config.js';
-import { comprehensiveWebData } from '../services/comprehensiveWebData.js';
+import { configuredComprehensiveWebData } from '../services/comprehensiveWebData.js';
 import { getMyRoster } from './simple-enhanced.js';
 
 export async function executeAIWorkflow(args: {
@@ -522,7 +522,7 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
               console.log(`  - Search count: ${searchCount + 1}/${maxSearches}`);
               searchCount++;
               
-              const searchResult = await comprehensiveWebData.fantasyFootballSearch(query);
+              const searchResult = await configuredComprehensiveWebData.fantasyFootballSearch(query);
               console.log(`  - Search completed: success=${searchResult.success}`);
               
               if (searchResult.success && searchResult.combinedText) {

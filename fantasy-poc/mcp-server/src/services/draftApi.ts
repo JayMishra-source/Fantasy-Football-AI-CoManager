@@ -4,7 +4,7 @@ import axios from 'axios';
 
 export class DraftApiService {
   private baseUrl = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
-  private year = 2025;
+  private year = 2024;
 
   private getHeaders() {
     const cookies = espnApi.getCookies();

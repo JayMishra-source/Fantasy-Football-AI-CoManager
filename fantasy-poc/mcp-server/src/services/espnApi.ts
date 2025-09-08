@@ -5,7 +5,7 @@ export class ESPNApiService {
   private axios: AxiosInstance;
   private baseURL = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
   private cookies: ESPNCookies | null = null;
-  private year: number = 2025;
+  private year: number = 2024;
 
   // Get current NFL week for 2025 season
   private getCurrentWeek(): number {

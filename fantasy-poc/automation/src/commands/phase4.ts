@@ -601,20 +601,33 @@ async function runFullAnalysis(config: any, week: number): Promise<any> {
 CURRENT SITUATION:
 - Week ${week} of the NFL season
 - You have access to my current roster data above
-- You can search the internet for the latest information using the web_search tool
+- You have access to a web_search tool for current information
+
+IMPORTANT INSTRUCTIONS FOR WEB SEARCH:
+- You MUST use the web_search tool to get current information before making recommendations
+- Call web_search({"query": "your search terms"}) for topics like:
+  * "NFL Week ${week} injury report updates"
+  * "fantasy football Week ${week} start sit recommendations"
+  * "NFL weather conditions Week ${week}"
+  * "[Player Name] injury news Week ${week}"
+  * "fantasy football waiver wire Week ${week}"
 
 YOUR MISSION:
-Help me make the best possible decisions to win this week and advance toward a championship. Use your web search capabilities to gather current information about:
-- Player injuries and status updates
-- Weather conditions for outdoor games
-- Recent performance trends and target share changes  
-- Emerging waiver wire opportunities
-- Matchup advantages I might be missing
+1. FIRST: Use web_search to gather current information about injuries, weather, and matchups
+2. THEN: Analyze my roster with this fresh information
+3. FINALLY: Provide position-by-position recommendations
 
-ANALYSIS APPROACH:
-Think like a championship-level fantasy manager. Don't just follow a template - use your judgment to focus on what matters most for my specific situation this week. Search for information that could give me an edge over opponents who rely only on projections.
+CO-MANAGER REVIEW INSTRUCTIONS:
+Review the roster like we're sitting together planning this week's lineup. Go position by position and tell me who to start, who to bench, and who to pick up from waivers. Be direct and decisive.
 
-Make decisions you would make if this was your own team. Be creative in finding opportunities others might miss.`
+**POSITION-BY-POSITION REVIEW:**
+1. **QUARTERBACK**: Look at my current starter vs bench QBs. Should I start someone else? Any waiver QBs worth grabbing?
+2. **RUNNING BACKS**: Check my RB1, RB2, and FLEX options. Any waiver RBs to target?
+3. **WIDE RECEIVERS**: Review my WR1, WR2, WR3 choices. Any waiver WRs available?
+4. **TIGHT END**: Should I stick with my current TE or stream from waivers?
+5. **DEFENSE/KICKER**: Any better streaming options available?
+
+Remember: Use web_search FIRST to get current information, then make recommendations based on fresh data.`
       });
 
       return {
