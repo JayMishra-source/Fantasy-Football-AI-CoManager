@@ -1,7 +1,7 @@
 import { espnApi } from '../services/espnApi.js';
 import { fantasyProsApi } from '../services/fantasyProsApi.js';
 import { llmConfig } from '../config/llm-config.js';
-import { simpleWebSearch } from '../services/simpleWebSearch.js';
+import { comprehensiveWebData } from '../services/comprehensiveWebData.js';
 import { getMyRoster } from './simple-enhanced.js';
 
 export async function executeAIWorkflow(args: {
@@ -522,13 +522,14 @@ async function generateResponseWithWebSearchTools(prompt: string): Promise<{ con
               console.log(`  - Search count: ${searchCount + 1}/${maxSearches}`);
               searchCount++;
               
-              const searchResult = await simpleWebSearch.search(query);
+              const searchResult = await comprehensiveWebData.fantasyFootballSearch(query);
               console.log(`  - Search completed: success=${searchResult.success}`);
               
-              if (searchResult.success && searchResult.results) {
-                console.log(`  - Results length: ${searchResult.results.length} chars`);
-                console.log(`  - Results preview: ${searchResult.results.substring(0, 200)}...`);
-                toolResults += `\nWeb search results for "${query}":\n${searchResult.results}\n`;
+              if (searchResult.success && searchResult.combinedText) {
+                console.log(`  - Results length: ${searchResult.combinedText.length} chars`);
+                console.log(`  - Results preview: ${searchResult.combinedText.substring(0, 200)}...`);
+                console.log(`  - Sources: ${searchResult.sources.join(', ')}`);
+                toolResults += `\nWeb search results for "${query}":\n${searchResult.combinedText}\n`;
               } else {
                 console.log(`  - Search failed: ${searchResult.error}`);
                 toolResults += `\nWeb search for "${query}" failed: ${searchResult.error}\n`;
