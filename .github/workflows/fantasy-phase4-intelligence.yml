@@ -409,6 +409,7 @@ jobs:
           NEXT_ACTIONS=""
           GRADE=""
           DATA_VERIFICATION=""
+          FULL_LLM_RESPONSE=""
           
           # Check multiple possible locations for the results file
           RESULTS_FILE=""
@@ -454,6 +455,81 @@ jobs:
               NEXT_ACTIONS=$(cat "$RESULTS_FILE" | jq -r '.insights.next_actions[]? // .next_actions[]?' 2>/dev/null || echo "")
               GRADE=$(cat "$RESULTS_FILE" | jq -r '.insights.performance_grade // .performance_grade' 2>/dev/null || echo "N/A")
               
+              # Extract full LLM response for complete transparency
+              echo "🔍 Debugging LLM response extraction from JSON..."
+              
+              # Show the structure of the JSON for debugging
+              echo "JSON structure preview:"
+              cat "$RESULTS_FILE" | jq 'keys' 2>/dev/null
+              
+              # Show what's in summary array
+              echo "Summary array contents:"
+              cat "$RESULTS_FILE" | jq '.summary[]' 2>/dev/null | head -2
+              
+              # Try multiple extraction paths with debugging
+              FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[0].fullLLMResponse // empty' 2>/dev/null)
+              echo "Path 1 (.summary[0].fullLLMResponse): Found ${#FULL_LLM_RESPONSE} characters"
+              
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[1].fullLLMResponse // empty' 2>/dev/null)
+                echo "Path 2 (.summary[1].fullLLMResponse - second league): Found ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.analysis_results.leagues[0].analysis.summary.fullLLMResponse // empty' 2>/dev/null)
+                echo "Path 3 (.analysis_results.leagues[0].analysis.summary.fullLLMResponse): Found ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.analysis_results.leagues[0].analysis.recommendations[0].analysis // empty' 2>/dev/null)
+                echo "Path 4 (.analysis_results.leagues[0].analysis.recommendations[0].analysis): Found ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.insights.analysis // empty' 2>/dev/null)
+                echo "Path 5 (.insights.analysis): Found ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.recommendations[0].analysis // empty' 2>/dev/null)
+                echo "Path 6 (.recommendations[0].analysis): Found ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.leagues[0].analysis // empty' 2>/dev/null)
+                echo "Path 7 (.leagues[0].analysis): Found ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
+              # If still empty, try to get from any analysis field in the JSON
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                echo "Trying deep search for LLM response content..."
+                FULL_LLM_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.. | select(type == "string" and length > 500 and (contains("QB") or contains("RB") or contains("WR") or contains("**") or contains("Recommendation"))) | select(. != null) // empty' 2>/dev/null | head -1)
+                echo "Deep search: Found ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
+              # Try to combine multiple league responses if single response not found
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                echo "Trying combined multi-league response..."
+                LEAGUE_1_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[0].fullLLMResponse // empty' 2>/dev/null)
+                LEAGUE_2_RESPONSE=$(cat "$RESULTS_FILE" | jq -r '.summary[1].fullLLMResponse // empty' 2>/dev/null)
+                
+                if [[ -n "$LEAGUE_1_RESPONSE" && -n "$LEAGUE_2_RESPONSE" ]]; then
+                  FULL_LLM_RESPONSE="$LEAGUE_1_RESPONSE"$'\n\n'"---"$'\n\n'"$LEAGUE_2_RESPONSE"
+                  echo "Combined multi-league response: ${#FULL_LLM_RESPONSE} characters"
+                elif [[ -n "$LEAGUE_1_RESPONSE" ]]; then
+                  FULL_LLM_RESPONSE="$LEAGUE_1_RESPONSE"
+                  echo "Single league response: ${#FULL_LLM_RESPONSE} characters"
+                fi
+              fi
+              
+              if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+                echo "❌ No complete LLM response found in JSON structure"
+                echo "Available keys in the JSON:"
+                cat "$RESULTS_FILE" | jq -r 'paths(scalars) as $p | $p | join(".")' 2>/dev/null | head -20
+              else
+                echo "✅ Found complete LLM response: ${#FULL_LLM_RESPONSE} characters"
+              fi
+              
               # Extract data verification info for success case
               ESPN_AUTH=$(cat "$RESULTS_FILE" | jq -r '.data_verification.espn_authenticated // false' 2>/dev/null)
               FANTASYPROS_AUTH=$(cat "$RESULTS_FILE" | jq -r '.data_verification.fantasypros_authenticated // false' 2>/dev/null)
@@ -484,36 +560,52 @@ jobs:
           fi
           
           
-          # Build description content safely
-          DESCRIPTION="**Mode**: $MODE | **Week**: $WEEK | **Grade**: $GRADE"
+          # Build description content - PRIORITIZE full LLM response
+          DESCRIPTION=""
           
-          # Add insights if available
-          if [[ -n "$INSIGHTS" ]]; then
-            DESCRIPTION="$DESCRIPTION"$'\n\n📊 **Key Insights:**'
-            while IFS= read -r line; do
-              DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
-            done <<< "$INSIGHTS"
+          # Check if we have the full LLM response
+          if [[ -n "$FULL_LLM_RESPONSE" && ${#FULL_LLM_RESPONSE} -gt 50 ]]; then
+            echo "✅ Using FULL LLM RESPONSE for Discord (${#FULL_LLM_RESPONSE} chars)"
+            # We have the full response - show ONLY that, nothing else
+            if [[ ${#FULL_LLM_RESPONSE} -gt 1800 ]]; then
+              TRUNCATED_RESPONSE="${FULL_LLM_RESPONSE:0:1800}..."
+              DESCRIPTION="$TRUNCATED_RESPONSE"$'\n\n📄 **Full analysis continues in GitHub Actions logs**'
+            else
+              DESCRIPTION="$FULL_LLM_RESPONSE"
+            fi
+          else
+            echo "⚠️ No full LLM response found, using fallback insights"
+            # Fallback if no full response available
+            DESCRIPTION="**Mode**: $MODE | **Week**: $WEEK | **Grade**: $GRADE"
+            if [[ -n "$INSIGHTS" ]]; then
+              DESCRIPTION="$DESCRIPTION"$'\n\n📊 **Analysis Summary:**'
+              while IFS= read -r line; do
+                DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
+              done <<< "$INSIGHTS"
+            fi
           fi
           
-          # Add urgent actions if available
-          if [[ -n "$URGENT_ACTIONS" ]]; then
-            DESCRIPTION="$DESCRIPTION"$'\n\n🚨 **Urgent Actions:**'
-            while IFS= read -r line; do
-              DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
-            done <<< "$URGENT_ACTIONS"
-          fi
-          
-          # Add next actions if available
-          if [[ -n "$NEXT_ACTIONS" ]]; then
-            DESCRIPTION="$DESCRIPTION"$'\n\n📋 **Next Steps:**'
-            while IFS= read -r line; do
-              DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
-            done <<< "$NEXT_ACTIONS"
-          fi
-          
-          # Add data verification section
-          if [[ -n "$DATA_VERIFICATION" ]]; then
-            DESCRIPTION="$DESCRIPTION"$'\n\n'"$DATA_VERIFICATION"
+          # Skip urgent actions, next actions, and data verification if we have full LLM response
+          # They just fragment the content
+          if [[ -z "$FULL_LLM_RESPONSE" ]]; then
+            # Only add these sections if we DON'T have the full response
+            if [[ -n "$URGENT_ACTIONS" ]]; then
+              DESCRIPTION="$DESCRIPTION"$'\n\n🚨 **Urgent Actions:**'
+              while IFS= read -r line; do
+                DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
+              done <<< "$URGENT_ACTIONS"
+            fi
+            
+            if [[ -n "$NEXT_ACTIONS" ]]; then
+              DESCRIPTION="$DESCRIPTION"$'\n\n📋 **Next Steps:**'
+              while IFS= read -r line; do
+                DESCRIPTION="$DESCRIPTION"$'\n• '"$line"
+              done <<< "$NEXT_ACTIONS"
+            fi
+            
+            if [[ -n "$DATA_VERIFICATION" ]]; then
+              DESCRIPTION="$DESCRIPTION"$'\n\n'"$DATA_VERIFICATION"
+            fi
           fi
           
           # Send Discord notification using jq for proper JSON formatting

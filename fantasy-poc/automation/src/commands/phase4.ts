@@ -371,23 +371,35 @@ async function generateIntelligenceSummary(mode: string, week: number, realResul
     key_insights.push(`A/B Testing: ${realResults.seasonal.abTest.recommendation}`);
   }
 
-  // If no real league analysis, generate insights from feedback loop system
-  if (key_insights.length === 0) {
-    console.log('💡 No league analysis available, generating insights from feedback loop system...');
+  // Extract real insights from the actual LLM analysis content
+  if (key_insights.length === 0 && realResults.leagues) {
+    console.log('💡 Extracting insights from actual LLM analysis content...');
     
-    // Get feedback loop insights using the imported services
-    try {
-      const { getPersonalizedInsights, getPerformanceMetrics, getCostAnalysis } = await import('@fantasy-ai/shared');
-      
-      // Generate some mock insights using the new feedback loop system
-      key_insights.push('Feedback Loop System: AI performance tracking system initialized');
-      key_insights.push('Learning Engine: Ready for pattern recognition and optimization');
-      key_insights.push('Cost Monitor: Budget tracking and optimization recommendations active');
-      
-      urgent_actions.push('System Check: All Phase 4 feedback loop components operational');
-      
-    } catch (error) {
-      console.warn('Could not load feedback loop insights:', (error as Error).message);
+    realResults.leagues.forEach((league: any) => {
+      if (league.analysis?.summary?.fullLLMResponse) {
+        // Extract first few sentences from the actual LLM response
+        const llmContent = league.analysis.summary.fullLLMResponse;
+        const sentences = llmContent.split(/[.!?]+/).filter((s: string) => s.trim().length > 20);
+        
+        // Look for actionable insights in the LLM response
+        const actionableSentences = sentences.filter((sentence: string) => {
+          const lower = sentence.toLowerCase();
+          return (lower.includes('start') || lower.includes('bench') || 
+                  lower.includes('pickup') || lower.includes('waiver') ||
+                  lower.includes('drop') || lower.includes('trade'));
+        }).slice(0, 2); // Take first 2 actionable insights per league
+        
+        if (actionableSentences.length > 0) {
+          actionableSentences.forEach((insight: string) => {
+            key_insights.push(`${league.league}: ${insight.trim()}`);
+          });
+        }
+      }
+    });
+    
+    // If still no insights, just indicate analysis is complete
+    if (key_insights.length === 0) {
+      key_insights.push('Full AI analysis completed - see complete response below');
     }
   }
 
