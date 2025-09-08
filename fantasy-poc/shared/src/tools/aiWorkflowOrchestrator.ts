@@ -580,67 +580,89 @@ function extractInsightsFromLLMResponse(llmResponse: any, leagueData: any[]): {
     .replace(/\n\s*\n\s*\n/g, '\n\n') // Remove excessive line breaks
     .trim();
   
-  // Extract a few key insights for summary purposes, but keep full response
+  // Extract actual insights from the LLM response content
   const insights: string[] = [];
   const recommendations: any[] = [];
   
-  // Extract high-level recommendations for each league (for summary only)
-  leagueData.forEach((league) => {
-    console.log(`🏈 Extracting summary insights for ${league.leagueName}...`);
+  console.log('🔍 Extracting real insights from LLM response content...');
+  
+  // Split response into sentences and extract meaningful recommendations
+  const sentences = responseText.split(/[.!?]+/).filter((s: string) => s.trim().length > 20);
+  
+  // Extract key actionable insights from the response
+  const actionableInsights = sentences.filter((sentence: string) => {
+    const lowerSentence = sentence.toLowerCase();
+    return (
+      lowerSentence.includes('start') ||
+      lowerSentence.includes('bench') ||
+      lowerSentence.includes('pickup') ||
+      lowerSentence.includes('drop') ||
+      lowerSentence.includes('recommend') ||
+      lowerSentence.includes('should') ||
+      lowerSentence.includes('avoid') ||
+      lowerSentence.includes('target') ||
+      lowerSentence.includes('consider')
+    ) && !lowerSentence.includes('complete') && !lowerSentence.includes('analysis');
+  }).slice(0, 6); // Limit to top 6 actionable insights
+  
+  if (actionableInsights.length > 0) {
+    insights.push(...actionableInsights.map((insight: string) => insight.trim()));
     
-    // Look for main recommendations in the response
-    const startPatterns = [
-      /START.*?:/gi,
-      /CONTINUE STARTING.*?:/gi, 
-      /MUST-START.*?:/gi,
-      /RECOMMENDED LINEUP/gi
-    ];
-    
-    const benchPatterns = [
-      /BENCH.*?:/gi,
-      /SIT.*?:/gi,
-      /AVOID.*?:/gi
-    ];
-    
-    const waiverPatterns = [
-      /WAIVER.*?:/gi,
-      /PICKUP.*?:/gi,
-      /TARGET.*?:/gi,
-      /CONSIDER.*?:/gi
-    ];
-    
-    // Extract one key insight per league for summary
-    if (responseText.toLowerCase().includes(league.leagueName.toLowerCase()) || 
-        responseText.toLowerCase().includes('lineup') ||
-        responseText.toLowerCase().includes('start')) {
+    // Create recommendations from the insights
+    leagueData.forEach((league) => {
+      const leagueSpecificInsights = actionableInsights.filter((insight: string) => 
+        insight.toLowerCase().includes(league.leagueName.toLowerCase()) ||
+        insight.toLowerCase().includes('qb') ||
+        insight.toLowerCase().includes('rb') ||
+        insight.toLowerCase().includes('wr') ||
+        insight.toLowerCase().includes('te') ||
+        insight.toLowerCase().includes('def') ||
+        insight.toLowerCase().includes('k')
+      );
       
-      const summaryInsight = `${league.leagueName}: Complete lineup analysis with position-by-position recommendations`;
-      insights.push(summaryInsight);
-      
-      // Add a recommendation object for this league
       recommendations.push({
         league: league.leagueName,
-        type: 'lineup_optimization',
+        type: 'actionable_insights',
         priority: 'high',
-        summary: 'Full position-by-position analysis provided'
+        insights: leagueSpecificInsights.slice(0, 3),
+        summary: `${leagueSpecificInsights.length} specific recommendations extracted`
       });
-    }
-  });
+    });
+  }
   
-  // If no specific insights found, create generic summary
+  // If no specific insights found, extract key phrases or bullets from response
   if (insights.length === 0) {
-    console.log('📋 No league-specific insights found, creating generic summary...');
-    insights.push('Complete fantasy analysis provided with lineup recommendations');
-    insights.push('Expert consensus rankings integrated for all position decisions');
-    insights.push('Position-by-position analysis completed for optimal lineup');
+    console.log('📋 No actionable insights found, extracting key phrases...');
+    
+    // Look for bullet points or numbered lists in the response
+    const bullets = responseText.match(/^[\s]*[•\-\*]\s*(.+)$/gm) || [];
+    const numbered = responseText.match(/^[\s]*\d+\.?\s*(.+)$/gm) || [];
+    const keyPhrases = [...bullets, ...numbered].slice(0, 4);
+    
+    if (keyPhrases.length > 0) {
+      insights.push(...keyPhrases.map((phrase: string) => phrase.replace(/^[\s]*[•\-\*\d\.]\s*/, '').trim()));
+    } else {
+      // Last resort: extract first few meaningful lines
+      const meaningfulLines = responseText.split('\n')
+        .filter((line: string) => line.trim().length > 30 && 
+                       !line.toLowerCase().includes('analysis') &&
+                       !line.toLowerCase().includes('complete'))
+        .slice(0, 3);
+      
+      if (meaningfulLines.length > 0) {
+        insights.push(...meaningfulLines.map((line: string) => line.trim()));
+      } else {
+        insights.push('AI analysis completed - check full response for details');
+      }
+    }
     
     // Add basic recommendations for all leagues
     leagueData.forEach((league) => {
       recommendations.push({
         league: league.leagueName,
-        type: 'general_analysis',
+        type: 'analysis_completed',
         priority: 'medium',
-        summary: 'Complete roster analysis provided'
+        summary: 'Analysis completed - review full response'
       });
     });
   }
