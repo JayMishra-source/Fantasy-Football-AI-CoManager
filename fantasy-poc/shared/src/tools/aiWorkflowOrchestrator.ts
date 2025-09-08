@@ -2,6 +2,7 @@ import { espnApi } from '../services/espnApi.js';
 import { fantasyProsApi } from '../services/fantasyProsApi.js';
 import { llmConfig } from '../config/llm-config.js';
 import { simpleWebSearch } from '../services/simpleWebSearch.js';
+import { getMyRoster } from './simple-enhanced.js';
 
 export async function executeAIWorkflow(args: {
   task: string;
@@ -55,6 +56,12 @@ export async function executeAIWorkflow(args: {
             throw new Error(`Empty roster returned for league ${league.leagueId}, team ${league.teamId}`);
           }
           
+          // Fetch waiver wire data too
+          const rosterWithWaivers = await getMyRoster({ 
+            leagueId: league.leagueId, 
+            teamId: league.teamId 
+          });
+          
           return {
             leagueId: league.leagueId,
             teamId: league.teamId,
@@ -62,6 +69,7 @@ export async function executeAIWorkflow(args: {
             teamName: (roster as any).teamName || 'My Team',
             starters: roster.starters || [],
             bench: roster.bench || [],
+            availablePlayers: rosterWithWaivers.availablePlayers || {},
             roster: roster
           };
         } catch (error: any) {

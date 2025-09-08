@@ -20,30 +20,30 @@ export async function getMyRoster(args: { leagueId: string; teamId: string }) {
   console.log(`✅ Available players fetched: ${availablePlayers.length} total`);
   
   // Sort and filter available players by position and relevance
-  const topAvailableByPosition = {
+  const topAvailableByPosition: Record<string, any[]> = {
     QB: availablePlayers
       .filter(p => p.position === 'QB')
-      .sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0))
+      .sort((a, b) => (b.projectedPoints || 0) - (a.projectedPoints || 0))
       .slice(0, 5), // Top 5 QBs
     RB: availablePlayers
       .filter(p => p.position === 'RB') 
-      .sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0))
+      .sort((a, b) => (b.projectedPoints || 0) - (a.projectedPoints || 0))
       .slice(0, 8), // Top 8 RBs
     WR: availablePlayers
       .filter(p => p.position === 'WR')
-      .sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0))
+      .sort((a, b) => (b.projectedPoints || 0) - (a.projectedPoints || 0))
       .slice(0, 8), // Top 8 WRs  
     TE: availablePlayers
       .filter(p => p.position === 'TE')
-      .sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0))
+      .sort((a, b) => (b.projectedPoints || 0) - (a.projectedPoints || 0))
       .slice(0, 5), // Top 5 TEs
     'D/ST': availablePlayers
       .filter(p => p.position === 'D/ST')
-      .sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0))
+      .sort((a, b) => (b.projectedPoints || 0) - (a.projectedPoints || 0))
       .slice(0, 5), // Top 5 defenses
     K: availablePlayers
       .filter(p => p.position === 'K')
-      .sort((a, b) => (b.averageScore || 0) - (a.averageScore || 0))
+      .sort((a, b) => (b.projectedPoints || 0) - (a.projectedPoints || 0))
       .slice(0, 5) // Top 5 kickers
   };
   
