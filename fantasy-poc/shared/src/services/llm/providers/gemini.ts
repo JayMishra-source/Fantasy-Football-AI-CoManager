@@ -66,11 +66,14 @@ export class GeminiProvider extends BaseLLMProvider {
             name: tool.name,
             description: tool.description,
             parameters: {
-              ...tool.input_schema,
-              type: 'OBJECT' as const
+              type: 'object',
+              properties: tool.input_schema.properties,
+              required: tool.input_schema.required || []
             }
           }))
         }];
+        
+        console.log('🔧 Gemini tools configured:', JSON.stringify(tools, null, 2));
       }
       
       // Start chat session
@@ -87,14 +90,35 @@ export class GeminiProvider extends BaseLLMProvider {
       const response = await result.response;
       let content = response.text();
       
+      // Debug raw response structure
+      console.log('🔍 Raw Gemini response structure:', {
+        candidates: response.candidates?.length,
+        functionCalls: (response as any).functionCalls?.length || 0,
+        finishReason: response.candidates?.[0]?.finishReason,
+        hasContent: !!content
+      });
+      
       // Handle function calls
       let tool_calls;
       const functionCalls = (response as any).functionCalls;
+      
+      // Also check candidates for function calls (alternative location)
+      const candidateFunctionCalls = response.candidates?.[0]?.content?.parts?.filter((part: any) => part.functionCall);
+      
       if (functionCalls && Array.isArray(functionCalls) && functionCalls.length > 0) {
+        console.log('📞 Found function calls in response.functionCalls');
         tool_calls = functionCalls.map((fc: any) => ({
           name: fc.name,
           arguments: fc.args
         }));
+      } else if (candidateFunctionCalls && candidateFunctionCalls.length > 0) {
+        console.log('📞 Found function calls in response.candidates[0].content.parts');
+        tool_calls = candidateFunctionCalls.map((part: any) => ({
+          name: part.functionCall.name,
+          arguments: part.functionCall.args
+        }));
+      } else {
+        console.log('📞 No function calls found in response');
       }
       
       return {
