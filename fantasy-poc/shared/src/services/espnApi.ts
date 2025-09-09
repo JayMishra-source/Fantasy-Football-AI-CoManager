@@ -94,8 +94,7 @@ export class ESPNApiService {
         `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
         { 
           params: { 
-            view: 'mRoster,mMatchup,mSettings',
-            scoringPeriodId: currentWeek
+            view: 'mRoster'
           } 
         }
       );
@@ -120,26 +119,21 @@ export class ESPNApiService {
         let seasonTotal = 0;
         let actualPoints = 0;
         
-        // Look for current week projections first
-        for (const stat of stats) {
-          if (stat.scoringPeriodId === currentWeek && stat.statSourceId === 1) {
-            // statSourceId 1 is usually projections
-            weeklyProjection = stat.appliedTotal || 0;
-          } else if (stat.scoringPeriodId === currentWeek && stat.statSourceId === 0) {
-            // statSourceId 0 is usually actual stats
-            actualPoints = stat.appliedTotal || 0;
-          } else if (stat.seasonId === this.year && stat.statSourceId === 1 && !stat.scoringPeriodId) {
-            // Season-long projections
-            seasonTotal = stat.appliedTotal || 0;
-          }
+        // Simplified stats processing - use what's available
+        // ESPN usually provides current stats in stats[0] and projections in stats[1]
+        if (stats.length > 0) {
+          actualPoints = stats[0].appliedTotal || 0;
         }
-        
-        // Fallback to basic array indexing if structured lookup fails
-        if (weeklyProjection === 0 && stats.length > 1) {
+        if (stats.length > 1) {
           weeklyProjection = stats[1].appliedTotal || 0;
         }
-        if (actualPoints === 0 && stats.length > 0) {
-          actualPoints = stats[0].appliedTotal || 0;
+        
+        // If we still need season totals, look for them in the stats array
+        for (const stat of stats) {
+          if (stat.seasonId === this.year && stat.statSourceId === 1 && !stat.scoringPeriodId) {
+            seasonTotal = stat.appliedTotal || 0;
+            break;
+          }
         }
         
         return {
