@@ -265,7 +265,7 @@ export class ComprehensiveWebData {
     console.log('🎯 Handling waiver wire query...');
     
     // Enhance query for waiver wire searches
-    const enhancedQuery = `${query} waiver wire targets pickups add drops 2024`;
+    const enhancedQuery = `${query} waiver wire targets pickups add drops 2025`;
     
     const searchResult = await this.enhancedSearch.search(enhancedQuery);
     const rssSearch = await this.rssAggregator.searchFantasyNews('waiver wire', 5);
@@ -302,7 +302,7 @@ export class ComprehensiveWebData {
   private async handleMatchupQuery(query: string): Promise<ComprehensiveResult> {
     console.log('⚔️ Handling matchup query...');
     
-    const enhancedQuery = `${query} start sit matchup analysis rankings 2024`;
+    const enhancedQuery = `${query} start sit matchup analysis rankings 2025`;
     return await this.comprehensiveSearch(enhancedQuery);
   }
 
