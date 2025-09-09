@@ -120,24 +120,31 @@ ${league.leagueName} (Team Name: ${league.teamName?.replace(/\d/g, (d: string) =
 
 STARTERS:
 ${league.starters.map((p: any) => {
-  // Convert ALL projections to words to avoid GitHub secret redaction
+  // Show both weekly projection and season total
   let projDesc = 'Unknown projection';
   if (p.projectedPoints !== undefined && p.projectedPoints !== null) {
-    const pts = p.projectedPoints;
-    // Convert the number to words for ALL values
-    const ptsInWords = pts.toFixed(1).replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+    const weeklyPts = p.projectedPoints;
+    const seasonPts = (p as any).seasonProjectedPoints;
     
-    // Add category label for context
-    let category = '';
-    if (pts < 2) category = 'Very Low';
-    else if (pts < 6) category = 'Low';
-    else if (pts < 12) category = 'Moderate';
-    else if (pts < 18) category = 'Good';
-    else if (pts < 25) category = 'High';
-    else if (pts < 50) category = 'Very High';
-    else category = 'Season-total';
+    // Convert weekly projection to words
+    const weeklyInWords = weeklyPts.toFixed(1).replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
     
-    projDesc = `${category} (${ptsInWords} points)`;
+    // Add category for weekly projection
+    let weeklyCategory = '';
+    if (weeklyPts < 2) weeklyCategory = 'Very Low';
+    else if (weeklyPts < 6) weeklyCategory = 'Low';
+    else if (weeklyPts < 12) weeklyCategory = 'Moderate';
+    else if (weeklyPts < 18) weeklyCategory = 'Good';
+    else if (weeklyPts < 25) weeklyCategory = 'High';
+    else weeklyCategory = 'Very High';
+    
+    projDesc = `Week ${weeklyCategory} (${weeklyInWords} pts)`;
+    
+    // Add season total if available and different
+    if (seasonPts && seasonPts > 0 && Math.abs(seasonPts - weeklyPts) > 10) {
+      const seasonInWords = seasonPts.toFixed(1).replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+      projDesc += ` | Season (${seasonInWords} total)`;
+    }
   }
   
   let ownedDesc = 'Unknown ownership';

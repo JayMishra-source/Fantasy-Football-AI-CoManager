@@ -88,12 +88,14 @@ export class ESPNApiService {
 
   async getTeamRoster(leagueId: string, teamId: string): Promise<TeamRoster> {
     try {
+      const currentWeek = this.getCurrentWeek();
+      
       const response = await this.axios.get(
         `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
         { 
           params: { 
-            view: 'mRoster'
-            // Remove scoringPeriodId: 0 to get current season data
+            view: ['mRoster', 'mMatchup', 'mSettings'],
+            scoringPeriodId: currentWeek
           } 
         }
       );
@@ -107,6 +109,39 @@ export class ESPNApiService {
       
       const processPlayer = (entry: any): Player => {
         const playerData = entry.playerPoolEntry?.player || {};
+        const stats = playerData.stats || [];
+        
+        // ESPN stats structure:
+        // stats[0] = actual stats for current period
+        // stats[1] = projected stats for current period (weekly projections)
+        // Different periods may have season totals vs weekly projections
+        
+        let weeklyProjection = 0;
+        let seasonTotal = 0;
+        let actualPoints = 0;
+        
+        // Look for current week projections first
+        for (const stat of stats) {
+          if (stat.scoringPeriodId === currentWeek && stat.statSourceId === 1) {
+            // statSourceId 1 is usually projections
+            weeklyProjection = stat.appliedTotal || 0;
+          } else if (stat.scoringPeriodId === currentWeek && stat.statSourceId === 0) {
+            // statSourceId 0 is usually actual stats
+            actualPoints = stat.appliedTotal || 0;
+          } else if (stat.seasonId === this.year && stat.statSourceId === 1 && !stat.scoringPeriodId) {
+            // Season-long projections
+            seasonTotal = stat.appliedTotal || 0;
+          }
+        }
+        
+        // Fallback to basic array indexing if structured lookup fails
+        if (weeklyProjection === 0 && stats.length > 1) {
+          weeklyProjection = stats[1].appliedTotal || 0;
+        }
+        if (actualPoints === 0 && stats.length > 0) {
+          actualPoints = stats[0].appliedTotal || 0;
+        }
+        
         return {
           id: playerData.id?.toString() || '',
           firstName: playerData.firstName || '',
@@ -114,8 +149,9 @@ export class ESPNApiService {
           fullName: playerData.fullName || 'Unknown Player',
           position: this.getPositionName(playerData.defaultPositionId || 0),
           team: playerData.proTeamId ? this.getTeamAbbreviation(playerData.proTeamId) : 'FA',
-          points: playerData.stats?.[0]?.appliedTotal || 0,
-          projectedPoints: playerData.stats?.[1]?.appliedTotal || 0,
+          points: actualPoints,
+          projectedPoints: weeklyProjection > 0 ? weeklyProjection : (seasonTotal > 0 ? seasonTotal / 17 : 0), // Use weekly if available, otherwise estimate from season
+          seasonProjectedPoints: seasonTotal, // Add season total as separate field
           injuryStatus: playerData.injuryStatus || undefined,
           percentStarted: playerData.ownership?.percentStarted || 0,
           percentOwned: playerData.ownership?.percentOwned || 0
