@@ -94,7 +94,7 @@ export class ESPNApiService {
         `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
         { 
           params: { 
-            view: ['mRoster', 'mMatchup', 'mSettings'],
+            view: 'mRoster,mMatchup,mSettings',
             scoringPeriodId: currentWeek
           } 
         }
