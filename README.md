@@ -1,505 +1,307 @@
-# Fantasy Football AI Manager - Phase 4 Advanced Intelligence System
+# Fantasy Football AI CoManager 🏈🤖
 
-A comprehensive AI-driven Fantasy Football management system that automates ESPN Fantasy Football team management using advanced intelligence engines. This system provides real-time decision making, adaptive learning, advanced analytics, and multi-season intelligence for optimal fantasy football performance.
+An intelligent ESPN Fantasy Football management system that combines automated GitHub Actions workflows with Claude Desktop integration through MCP (Model Context Protocol). The system analyzes your ESPN leagues and provides AI-driven recommendations for lineup optimization, waiver wire targets, and trade analysis.
 
-## 🎯 Core Features
+## 🎯 What This Does
 
-### 🧠 Phase 4 Advanced Intelligence Engines
-
-1. **Real-Time Decision Engine**
-   - Sub-5-second response to breaking fantasy news
-   - Instant lineup adjustments based on player news
-   - Automated injury and weather impact analysis
-   - Emergency protocol activation for critical decisions
-
-2. **Adaptive Learning Engine** 
-   - Continuous pattern recognition from your decisions
-   - Strategy evolution based on league-specific trends
-   - Historical performance analysis and improvement suggestions
-   - Cross-season knowledge transfer
-
-3. **Advanced Analytics Engine**
-   - Comprehensive performance dashboards with ROI analysis
-   - Success rate tracking by decision type and confidence level
-   - Cost-per-decision optimization and efficiency metrics
-   - Benchmarking against league average and expert consensus
-
-4. **Multi-Season Intelligence Engine**
-   - Historical data processing across multiple fantasy seasons
-   - Player development trajectory analysis
-   - Seasonal strategy optimization (early/mid/late season adjustments)
-   - Cross-season pattern recognition for long-term success
-
-### 🏈 Fantasy Management Tools
-
-1. **Automated Lineup Optimization**
-   - Thursday pre-game analysis and recommendations
-   - Sunday morning final checks with weather/injury updates
-   - Real-time decision support during games
-
-2. **Intelligent Waiver Wire Management**
-   - Monday post-game analysis and target identification
-   - Tuesday waiver wire recommendations with FAAB optimization
-   - Cross-league coordination for maximum efficiency
-
-3. **Trade Analysis & Recommendations**
-   - Trade fairness evaluation with projected impact analysis
-   - Market inefficiency detection and exploitation strategies
-   - Multi-team trade orchestration capabilities
-
-4. **ESPN Integration**
-   - Secure authentication for private league access
-   - Complete roster and player data synchronization
-   - Transaction history tracking and analysis
+Transform your fantasy football management with AI that:
+- **Analyzes your ESPN leagues** - Fetches real-time data from ESPN Fantasy API
+- **Optimizes lineups** - Sets optimal lineups based on projections and matchups  
+- **Identifies waiver targets** - Finds breakout players before your competition
+- **Evaluates trades** - Provides fair trade analysis with projected impact
+- **Runs automatically** - GitHub Actions or on-demand through Claude Desktop
 
 ## 🚀 Quick Start
 
+### Choose Your Path
+
+#### Path 1: GitHub Actions Automation (Set It & Forget It)
+Best for: Users who want automated daily/weekly analysis sent to Discord
+
+#### Path 2: Claude Desktop + MCP (Interactive AI Assistant)
+Best for: Users who want conversational AI help with fantasy decisions
+
+#### Path 3: Local POC (Development & Testing)
+Best for: Developers who want to test ESPN API integration
+
+## 📚 Documentation
+
+### Core Documentation
+- [**Setup Guide for Friends**](./SETUP_GUIDE_FOR_FRIENDS.md) - Easy setup guide for non-developers
+- [**GitHub Actions Flow**](./FLOWCHART.md) - Visual flowchart of the automation workflow
+- [**MCP + Claude Desktop Flow**](./MCP_CLAUDE_DESKTOP_FLOWCHART.md) - Integration with Claude Desktop
+- [**Technical Fixes**](./ESPN_API_FIXES_REPORT.md) - Recent ESPN API data collection improvements
+- [**Phase 4 Intelligence**](./PHASE4_ADVANCED_INTELLIGENCE.md) - Advanced AI system documentation
+
+### For Developers
+- [**CLAUDE.md**](./CLAUDE.md) - Instructions for Claude Code development
+- [**System Prompt**](./SYSTEM_PROMPT.md) - AI prompting guidelines
+
+## 🛠️ Installation
+
 ### Prerequisites
+- Node.js 16+ and npm
+- ESPN Fantasy Football account
+- GitHub account (for Actions) OR Claude Desktop (for MCP)
 
-- Node.js (v16 or higher)
-- npm or yarn 
-- ESPN Fantasy Football account with private league access
-- Git (for cloning the repository)
+### Option 1: GitHub Actions Setup
 
-### Option 1: Phase 4 Automation CLI (Recommended)
+1. **Fork this repository**
+2. **Get ESPN cookies** (see Authentication section)
+3. **Add GitHub Secrets**:
+   ```
+   ESPN_S2          # Your espn_s2 cookie
+   ESPN_SWID        # Your SWID cookie  
+   LEAGUE_1_ID      # Your league ID
+   LEAGUE_1_TEAM_ID # Your team ID
+   GEMINI_API_KEY   # Google Gemini API key (free tier)
+   DISCORD_WEBHOOK_URL # Discord channel webhook
+   ```
+4. **Enable GitHub Actions** in your fork
+5. **Automated runs**:
+   - Daily at 8 AM ET
+   - Hourly during games (Sun/Mon/Thu)
+   - Manual trigger anytime
 
-The Phase 4 system includes a powerful CLI for automated fantasy management:
+### Option 2: Claude Desktop + MCP Setup
 
-```bash
-# Clone and setup
-git clone https://github.com/your-repo/fantasy-football-ai-manager.git
-cd FantasyCoManager/fantasy-poc/automation
+1. **Clone repository**:
+   ```bash
+   git clone https://github.com/yourusername/FantasyCoManager.git
+   cd FantasyCoManager/fantasy-poc/mcp-server
+   ```
 
-# Install dependencies
-npm install
+2. **Build MCP server**:
+   ```bash
+   npm install
+   npm run build
+   ```
 
-# Initialize environment
-npx tsx src/cli.ts init
+3. **Configure Claude Desktop** (`~/.config/Claude/claude_desktop_config.json`):
+   ```json
+   {
+     "mcpServers": {
+       "fantasy-football": {
+         "command": "node",
+         "args": ["/path/to/fantasy-poc/mcp-server/dist/index.js"],
+         "cwd": "/path/to/fantasy-poc/mcp-server"
+       }
+     }
+   }
+   ```
 
-# Run full intelligence analysis
-npx tsx src/cli.ts intelligence --mode full --week 5
-```
+4. **Restart Claude Desktop** and ask:
+   - "Help me with my fantasy team"
+   - "Who should I start this week?"
+   - "Find waiver wire targets"
 
-#### Available CLI Commands
-
-**Intelligence Engines:**
-```bash
-# Full intelligence mode (all engines)
-npx tsx src/cli.ts intelligence --mode full --week [week_number]
-
-# Individual engines
-npx tsx src/cli.ts realtime      # Real-time event monitoring
-npx tsx src/cli.ts learning      # Adaptive learning analysis  
-npx tsx src/cli.ts analytics     # Advanced analytics dashboard
-npx tsx src/cli.ts seasonal      # Multi-season intelligence
-
-# Emergency intelligence for breaking news
-npx tsx src/cli.ts emergency
-```
-
-**Scheduled Automation:**
-```bash
-# Weekly workflow automation
-npx tsx src/cli.ts thursday      # Pre-game optimization
-npx tsx src/cli.ts sunday        # Final lineup check
-npx tsx src/cli.ts monday        # Post-game analysis
-npx tsx src/cli.ts tuesday       # Waiver wire analysis
-
-# Custom workflow execution
-npx tsx src/cli.ts workflow --task lineup --week 5
-```
-
-**Utility Commands:**
-```bash
-npx tsx src/cli.ts roster --league LEAGUE_ID --team TEAM_ID
-npx tsx src/cli.ts cost          # View LLM usage costs
-```
-
-### Option 2: Web Interface POC
-
-For testing and development:
+### Option 3: Local Development POC
 
 ```bash
-cd fantasy-poc
+# Clone and navigate
+git clone https://github.com/yourusername/FantasyCoManager.git
+cd FantasyCoManager/fantasy-poc
 
-# Quick start (installs dependencies and starts both server/client)
+# Quick start (both frontend and backend)
 ./start-poc.sh
 
-# Manual setup
-cd server && npm install && npm run dev    # Backend: http://localhost:3003
-cd client && npm install && npm run dev    # Frontend: http://localhost:5173
+# Or manually:
+cd server && npm install && npm run dev  # Backend on :3003
+cd client && npm install && npm run dev  # Frontend on :5173
 ```
 
-### Option 3: Claude Desktop Integration (MCP Server)
+## 🔐 ESPN Authentication
 
-For direct Claude integration:
+### Getting Your ESPN Cookies
 
-```bash
-cd fantasy-poc/mcp-server
-npm install && npm run build
+1. **Login to ESPN Fantasy** in Chrome/Firefox
+2. **Open DevTools** (F12) → Application → Cookies
+3. **Find on fantasy.espn.com**:
+   - `espn_s2` - Long authentication token
+   - `SWID` - UUID in curly braces like `{123-456-789}`
+4. **Copy these values** for configuration
 
-# Add to Claude Desktop config (~/.config/Claude/claude_desktop_config.json):
-{
-  "mcpServers": {
-    "espn-fantasy": {
-      "command": "node",
-      "args": ["/absolute/path/to/fantasy-poc/mcp-server/dist/index.js"],
-      "env": {
-        "ESPN_S2": "your_cookie",
-        "ESPN_SWID": "{your-swid}",
-        "LEAGUE_ID": "your_league_id",
-        "TEAM_ID": "your_team_id"
-      }
-    }
-  }
-}
+### Finding Your League Info
+
+From your ESPN Fantasy league URL:
 ```
+https://fantasy.espn.com/football/league?leagueId=123456
+                                              ^^^^^^ Your League ID
 
-## 📊 Configuration & Environment Setup
-
-### 1. ESPN Authentication Setup
-
-#### Option A: Browser Cookie Method (Recommended)
-
-1. Login to ESPN Fantasy Football in your browser
-2. Open Developer Tools (F12) → Application → Cookies → fantasy.espn.com
-3. Copy these values:
-   - `espn_s2` - Long authentication string
-   - `SWID` - UUID with curly braces `{uuid}`
-
-#### Option B: Automated Login (CLI)
-The system can attempt automated login using credentials, but may require manual cookie fallback.
-
-### 2. Environment Configuration
-
-Create a `.env` file in the automation directory:
-
-```bash
-# ESPN Authentication
-ESPN_S2=your_espn_s2_cookie_value_here
-ESPN_SWID={your-swid-uuid-with-braces}
-
-# League Configuration
-LEAGUE_ID=your_league_id_number
-TEAM_ID=your_team_id_number
-
-# LLM Configuration (choose one)
-LLM_PROVIDER=gemini
-GEMINI_API_KEY=your_gemini_api_key
-
-# Alternative providers
-# LLM_PROVIDER=openai
-# OPENAI_API_KEY=your_openai_api_key
-
-# LLM_PROVIDER=anthropic  
-# ANTHROPIC_API_KEY=your_anthropic_api_key
-
-# Optional: Advanced Settings
-MOCK_MODE=false                    # Set to true for testing without real API calls
-CURRENT_SEASON=2025               # NFL season year
-DEBUG_LOGGING=true                # Enable detailed logging
+https://fantasy.espn.com/football/team?leagueId=123456&teamId=3
+                                                         ^^^^^^ Your Team ID
 ```
-
-### 3. GitHub Actions Automation (Optional)
-
-The system includes automated GitHub Actions workflows for hands-free operation:
-
-1. Fork the repository
-2. Add secrets in GitHub Settings → Secrets and Variables → Actions:
-   - `ESPN_S2`
-   - `ESPN_SWID` 
-   - `LEAGUE_ID`
-   - `TEAM_ID`
-   - `GEMINI_API_KEY` (or your chosen LLM provider key)
-
-The system will automatically run:
-- **Thursday 6 PM ET**: Pre-game optimization
-- **Sunday 11 AM ET**: Final lineup checks  
-- **Monday 8 AM ET**: Post-game analysis
-- **Tuesday 10 AM ET**: Waiver wire recommendations
 
 ## 💡 Usage Examples
 
-### Phase 4 Intelligence System
+### With GitHub Actions
+Once configured, the system automatically:
+- **Thursday 6 PM**: Pre-game optimization
+- **Sunday 11 AM**: Final lineup checks
+- **Monday 8 AM**: Waiver wire analysis  
+- **Tuesday 10 AM**: Trade recommendations
 
-**Full Intelligence Analysis:**
-```bash
-# Run complete analysis for current week
-npx tsx src/cli.ts intelligence --mode full --week 5
+Results sent to your Discord channel.
 
-# Output includes:
-# - Real-time events detected: 3
-# - Patterns learned: 5
-# - Analytics dashboard generated
-# - Seasonal insights: 8 strategic recommendations
+### With Claude Desktop
+Ask Claude naturally:
+- "Show me my current roster"
+- "Who should I start: Player A or Player B?"
+- "What's the best waiver pickup this week?"
+- "Is this trade fair: My RB1 for their WR1?"
+
+### With Local POC
+Access http://localhost:5173 to:
+- View your roster with live ESPN data
+- Test ESPN API endpoints
+- See player projections and stats
+
+## 🏗️ Architecture
+
+### System Components
+
+```
+┌─────────────────────────────────────────────────┐
+│                   User Interfaces                │
+├──────────┬────────────┬────────────┬────────────┤
+│  GitHub  │   Claude   │    Web     │    CLI     │
+│  Actions │  Desktop   │    POC     │   Tools    │
+└──────────┴────────────┴────────────┴────────────┘
+                           │
+┌─────────────────────────────────────────────────┐
+│              Core Services Layer                 │
+├──────────────────────────────────────────────────┤
+│  • ESPN API Integration (Authentication, Data)   │
+│  • FantasyPros Rankings Integration              │
+│  • AI Orchestration (Gemini, Claude, GPT)        │
+│  • Data Processing & Slot Categorization         │
+└─────────────────────────────────────────────────┘
+                           │
+┌─────────────────────────────────────────────────┐
+│                 Data Sources                     │
+├──────────────────────────────────────────────────┤
+│  • ESPN Fantasy API (Rosters, Matchups, Stats)   │
+│  • FantasyPros (Expert Rankings, Projections)    │
+│  • Weather API (Game Conditions)                 │
+│  • News Feeds (Injury Reports, Breaking News)    │
+└─────────────────────────────────────────────────┘
 ```
 
-**Individual Engine Usage:**
-```bash
-# Monitor breaking news and injuries
-npx tsx src/cli.ts realtime
+### Key Features by Component
 
-# Generate performance analytics
-npx tsx src/cli.ts analytics  
+**GitHub Actions Automation** (`fantasy-poc/automation/`)
+- Phase 4 Advanced Intelligence System
+- Scheduled and manual workflows
+- Discord webhook notifications
+- Multi-league support
 
-# Emergency response for critical news
-npx tsx src/cli.ts emergency
-```
+**MCP Server** (`fantasy-poc/mcp-server/`)
+- 10+ MCP tools for ESPN data access
+- Lineup optimization algorithms
+- Trade and waiver analysis
+- Direct Claude Desktop integration
 
-### Automated Weekly Workflow
+**Web POC** (`fantasy-poc/client/` + `fantasy-poc/server/`)
+- React 19 + TypeScript frontend
+- Express + Puppeteer backend
+- ESPN authentication handling
+- API testing interface
 
-```bash
-# Thursday: Pre-game lineup optimization
-npx tsx src/cli.ts thursday --week 5
-# → Analyzes player matchups, weather, injury reports
-# → Suggests optimal lineup changes
+**Shared Library** (`fantasy-poc/shared/`)
+- ESPN API client with 2025 season support
+- Roster slot categorization (26 position types)
+- Projection normalization (weekly vs season)
+- AI workflow orchestration
 
-# Sunday: Final checks before games
-npx tsx src/cli.ts sunday --week 5  
-# → Last-minute injury/inactive updates
-# → Final lineup recommendations
+## 🔧 Recent Improvements
 
-# Monday: Post-game analysis  
-npx tsx src/cli.ts monday --week 5
-# → Performance review and waiver targets
-# → Identifies breakout players and busts
+### ESPN Data Collection Fixes (Completed)
+✅ Fixed weekly vs season projection logic  
+✅ Enhanced FantasyPros player matching with position validation  
+✅ Standardized ESPN API to use 2025 season  
+✅ Improved slot categorization for all roster positions  
+✅ Added comprehensive logging for debugging  
 
-# Tuesday: Waiver wire strategy
-npx tsx src/cli.ts tuesday --week 5
-# → FAAB bidding recommendations
-# → Drop candidates and priority rankings
-```
-
-### Integration Examples
-
-**With Claude Desktop (MCP):**
-```
-"Analyze my team's performance this week"
-"Should I start Player X or Player Y in my flex?"
-"Find the best waiver wire pickups for next week"  
-"Is this trade fair: My RB1 for his WR1 + RB2?"
-```
-
-**Web Interface:**
-- Dashboard view of all intelligence insights
-- Interactive lineup optimization tools
-- Real-time notifications and alerts
-- Historical performance tracking
-
-## ⚙️ Performance & Technical Details
-
-### System Performance (Phase 4 Testing Results)
-
-**Execution Speed:**
-- Real-time Mode: <1 second response time
-- Full Intelligence Mode: 0.374 seconds (all engines) 
-- Individual Engines: <1 second each
-- Emergency Mode: <1 second for critical decisions
-
-**Success Metrics:**
-- 100% test success rate across all components
-- Sub-second response times for all operations
-- Graceful error handling and degradation
-- Efficient resource usage with no memory leaks
-
-**Intelligence Output Quality:**
-- Performance Grades: A+ to B range consistently
-- 4 actionable insights per analysis
-- 3 urgent actions identified per run
-- 4 strategic recommendations per session
-
-### Technical Architecture
-
-**Phase 4 Engine Stack:**
-- Real-Time Decision Engine (`src/engines/realTimeEngine.ts`)
-- Adaptive Learning Engine (`src/engines/adaptiveLearningEngine.ts`) 
-- Advanced Analytics Engine (`src/engines/analyticsEngine.ts`)
-- Multi-Season Intelligence (`src/engines/seasonalEngine.ts`)
-
-**LLM Provider Support:**
-- Google Gemini (recommended for speed/cost)
-- OpenAI GPT-4 (premium intelligence)
-- Anthropic Claude (advanced reasoning)
-- Cost optimization and provider switching
-
-**Data Management:**
-- JSON-based persistence for intelligence results
-- Historical data tracking and analysis
-- Cross-season pattern recognition
-- Automated backup and recovery
+### Repository Cleanup (Completed)
+✅ Removed duplicate MCP server (saved 40% repository size)  
+✅ Cleaned up 18 outdated documentation files  
+✅ Streamlined to essential, current documentation  
 
 ## 🐛 Troubleshooting
 
-### Authentication Issues
+### Common Issues
 
-**ESPN Authentication Failures:**
-```bash
-# Verify cookies are valid
-npx tsx src/cli.ts init
+**"ESPN authentication failed"**
+- Cookies expire after ~30 days
+- Get fresh cookies from ESPN website
+- Update secrets/config with new values
 
-# Check league access
-npx tsx src/cli.ts roster --league LEAGUE_ID --team TEAM_ID
+**"No roster data available"**
+- Verify League ID and Team ID are correct
+- Check if league is private (requires auth)
+- Ensure cookies are from correct ESPN account
 
-# Re-authenticate with fresh cookies
-# Update .env with new ESPN_S2 and ESPN_SWID values
-```
+**"Port already in use" (Local POC)**
+- Another instance is running
+- Kill existing process or use different port
 
-**Common Auth Problems:**
-- Cookies expired (ESPN sessions last ~2 hours)
-- Wrong league ID (check ESPN URL: `/leagues/{LEAGUE_ID}`)  
-- Private league requires authentication
-- Team ID mismatch (verify in league roster)
+**GitHub Actions not running**
+- Check if Actions are enabled in fork
+- Verify all secrets are set correctly
+- Check workflow logs for specific errors
 
-### CLI & System Issues
-
-**Installation Problems:**
-```bash
-# Clear npm cache and reinstall
-npm cache clean --force
-rm -rf node_modules package-lock.json
-npm install
-
-# Verify TypeScript and tsx installation
-npx tsx --version
-```
-
-**Environment Configuration:**
-```bash
-# Check required environment variables
-npx tsx -e "console.log(process.env.ESPN_S2 ? 'ESPN_S2: ✓' : 'ESPN_S2: ✗')"
-npx tsx -e "console.log(process.env.LEAGUE_ID ? 'LEAGUE_ID: ✓' : 'LEAGUE_ID: ✗')"
-
-# Test LLM provider connection
-npx tsx -e "
-const config = require('./src/config/llm-config.ts');
-config.LLMConfigManager.testConfiguration().then(console.log);
-"
-```
-
-**Performance Issues:**
-- Enable `MOCK_MODE=true` for testing without API calls
-- Reduce analysis frequency for cost optimization
-- Check network connectivity for ESPN API access
-
-### GitHub Actions Workflow
-
-**Workflow Failures:**
-1. Verify all secrets are properly set in repository settings
-2. Check workflow logs for specific error messages  
-3. Ensure branch protection rules allow workflow execution
-4. Validate `.github/workflows/` YAML syntax
-
-**Manual Trigger:**
-```bash
-# Trigger workflow manually from GitHub Actions tab
-# Select "Fantasy Phase 4 Intelligence" workflow
-# Click "Run workflow" with desired mode selection
-```
-
-## 🔒 Privacy & Security
-
-### Data Protection
-- All ESPN cookies stored locally in `.env` files only
-- No credentials transmitted to external services except ESPN
-- LLM providers only receive anonymized fantasy data  
-- Intelligence results stored locally in JSON format
-
-### Security Best Practices
-- Never commit `.env` files to version control
-- Rotate ESPN cookies regularly (every few days)
-- Use GitHub Secrets for automation workflows
-- Monitor LLM usage costs and set limits
-
-### Rate Limiting & API Usage
-- ESPN API: Respectful rate limiting implemented
-- LLM Providers: Cost tracking and optimization
-- GitHub Actions: Limited to scheduled runs + manual triggers
-- Local usage: No external rate limits
-
-## 🚀 Advanced Usage & Development
-
-### Custom Engine Development
-
-Create custom intelligence engines by extending the base engine:
-
-```typescript
-// src/engines/customEngine.ts
-import { BaseEngine } from './baseEngine';
-
-export class CustomEngine extends BaseEngine {
-  async analyze(week: number): Promise<AnalysisResult> {
-    // Implement your custom analysis logic
-    return {
-      insights: ['Custom insight 1', 'Custom insight 2'],
-      recommendations: ['Action 1', 'Action 2'],
-      confidence: 0.85
-    };
-  }
-}
-```
-
-### Historical Data Analysis
-
-Access stored intelligence data:
+### Debug Commands
 
 ```bash
-# View historical results
-ls -la *.json
+# Test ESPN authentication
+curl -H "Cookie: espn_s2=YOUR_COOKIE; SWID=YOUR_SWID" \
+  "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/2025/segments/0/leagues/YOUR_LEAGUE_ID"
 
-# Analyze analytics history
-cat analytics_history.json | jq '.trends.seasonal_patterns'
+# Check MCP server
+node fantasy-poc/mcp-server/dist/index.js
 
-# Compare performance over time  
-cat phase4_results.json | jq '.intelligence_summary'
+# View GitHub Actions logs
+# Go to Actions tab → Select workflow → View logs
 ```
 
-### Integration with External Tools
+## 📊 Performance
 
-**Webhook Integration:**
-```bash
-# Send results to external webhook
-curl -X POST your-webhook-url \
-  -H "Content-Type: application/json" \
-  -d @phase4_results.json
-```
+- **ESPN API Response**: < 500ms average
+- **Lineup Optimization**: < 2 seconds
+- **Full Analysis**: < 5 seconds
+- **MCP Tool Execution**: < 1 second each
+- **GitHub Actions Runtime**: ~2-3 minutes total
 
-**Database Integration:**
-- Modify engines to write to PostgreSQL/MongoDB
-- Store historical patterns for advanced learning
-- Build custom reporting dashboards
+## 🔒 Security & Privacy
 
-## 📈 Roadmap & Future Enhancements
+- ESPN cookies stored as secrets (GitHub) or locally (MCP/POC)
+- No credentials sent to third parties
+- AI providers receive only anonymized fantasy data
+- All data processing happens in your environment
 
-### Phase 5 Planned Features (Q2 2025)
-- Real-time WebSocket integration for live game updates
-- Machine learning model training on historical decisions  
-- Multi-league coordination and arbitrage opportunities
-- Voice assistant integration for hands-free management
-- Mobile app with push notifications
+## 🤝 Contributing
 
-### Community & Contributions
-- Open source contributions welcome
-- Fantasy strategy sharing platform
-- League performance benchmarking
-- Custom scoring system adaptations
+Contributions welcome! Areas for improvement:
+- Additional MCP tools for Claude
+- Enhanced trade algorithms
+- More LLM provider support
+- Dynasty league features
+- Keeper league optimization
 
-### Enterprise Features
-- Multi-team management for consultants
-- Advanced backtesting and simulation
-- Custom LLM fine-tuning for league-specific strategies  
-- White-label licensing for fantasy platforms
+## 📝 License
+
+MIT License - See LICENSE file for details
+
+## 🙏 Acknowledgments
+
+- ESPN Fantasy API (unofficial)
+- FantasyPros for expert rankings
+- Anthropic for Claude and MCP
+- Google for Gemini API
+- The fantasy football community
 
 ---
 
-## 🏆 Production Deployment Status
+**Built with ❤️ for fantasy football managers who want an AI edge**
 
-**Phase 4 Testing Results: ✅ FULLY PASSED**
-
-The Phase 4 Advanced Intelligence System has completed comprehensive testing with 100% success rate:
-- All 4 intelligence engines operational
-- CLI integration tested and validated  
-- Performance exceeds requirements (sub-second execution)
-- Error handling robust and graceful
-- Production-ready for 2025 NFL season
-
-**Ready for deployment with advanced intelligence capabilities that will revolutionize your fantasy football management.** 🤖🏈
+*Not affiliated with ESPN or Disney. Use responsibly and within ESPN's terms of service.*
