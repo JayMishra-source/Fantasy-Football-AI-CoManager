@@ -38,7 +38,7 @@ export class ESPNApiService {
     return this.cookies;
   }
 
-  async getLeagueInfo(leagueId: string, year: number = 2024) {
+  async getLeagueInfo(leagueId: string, year: number = 2025) {
     const fullUrl = `${this.baseURL}/seasons/${year}/segments/0/leagues/${leagueId}`;
     console.log('Fetching URL:', fullUrl);
     
@@ -74,7 +74,7 @@ export class ESPNApiService {
     return response.data;
   }
 
-  async getTeams(leagueId: string, year: number = 2024) {
+  async getTeams(leagueId: string, year: number = 2025) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { params: { view: 'mTeam' } }
@@ -82,7 +82,7 @@ export class ESPNApiService {
     return response.data;
   }
 
-  async getRoster(leagueId: string, teamId: string, year: number = 2024) {
+  async getRoster(leagueId: string, teamId: string, year: number = 2025) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { 
@@ -97,7 +97,7 @@ export class ESPNApiService {
     return team?.roster || null;
   }
 
-  async getPlayers(leagueId: string, year: number = 2024) {
+  async getPlayers(leagueId: string, year: number = 2025) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { 
@@ -109,7 +109,7 @@ export class ESPNApiService {
     return response.data.players;
   }
 
-  async getMatchups(leagueId: string, week: number, year: number = 2024) {
+  async getMatchups(leagueId: string, week: number, year: number = 2025) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { 
@@ -122,7 +122,7 @@ export class ESPNApiService {
     return response.data.schedule;
   }
 
-  async getTransactions(leagueId: string, year: number = 2024) {
+  async getTransactions(leagueId: string, year: number = 2025) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}/transactions`
     );

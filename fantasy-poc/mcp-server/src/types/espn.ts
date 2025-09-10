@@ -12,6 +12,7 @@ export interface Player {
   team: string;
   points: number;
   projectedPoints?: number;
+  seasonProjectedPoints?: number;
   injuryStatus?: string;
   percentStarted?: number;
   percentOwned?: number;

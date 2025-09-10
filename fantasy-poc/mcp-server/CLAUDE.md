@@ -11,155 +11,181 @@ ESPN Fantasy Football MCP Server - Model Context Protocol server that enables Cl
 **Core**: Node.js, TypeScript 5.7, ES2022 modules
 **MCP**: @modelcontextprotocol/sdk 1.17.4
 **ESPN Integration**: Puppeteer 24, Axios, Cheerio
+**Shared Library**: @fantasy-ai/shared (local package in ../shared)
 **LLM Providers**: Claude (Anthropic), OpenAI GPT, Google Gemini, Perplexity
 **Build**: TypeScript compiler, tsx for dev mode
 
 ## Essential Commands
 
-### Development & Testing
+### Build & Development
 ```bash
-# Install dependencies
-npm install
+# Full build (includes shared library)
+npm run build         # Builds ../shared first, then MCP server
 
-# Build TypeScript to dist/
-npm run build
+# Local build only (skips shared library)
+npm run build:local   # Just runs tsc
 
 # Development mode with hot reload
-npm run dev
+npm run dev          # Uses tsx to run TypeScript directly
 
-# Test MCP server functionality
-./test-mcp.sh                    # Basic tool listing
-./test-mcp-roster.sh             # Test roster tools
-./test-all-features.sh           # Comprehensive test
-./test-draft-features.sh         # Draft functionality
+# Start production server
+npm start            # Runs built JavaScript from dist/
 
-# Test with Claude Desktop protocol
-echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | node dist/index.js
+# Quick test
+npm test             # Builds and tests MCP protocol
 ```
 
-### Configuration
+### Testing Scripts
+```bash
+# MCP Protocol Testing
+./test-mcp.sh                    # Basic tool listing
+./test-mcp-roster.sh             # Test roster tools
+echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | node dist/index.js
+
+# Feature Testing  
+./test-all-features.sh           # Comprehensive test suite
+./test-draft-features.sh         # Draft functionality
+./test-auction-ready.sh          # Auction draft readiness
+./test-snake-ready.sh            # Snake draft readiness
+./test-fantasypros-ready.sh     # FantasyPros integration
+
+# API Testing (Node scripts)
+node test-api.js                 # Basic API functionality
+node test-espn-only.js          # ESPN API without LLM
+node test-enhanced-tools.js     # Enhanced tool features
+node test-cost-monitoring.js    # Cost tracking system
+```
+
+### Configuration Management
 ```bash
 # Initial setup
 cp .env.example .env
 # Edit .env with ESPN cookies and LLM provider keys
 
-# Switch between leagues
+# Switch between leagues (modifies .env)
 ./switch-league.sh
 
 # Get Claude Desktop config path
 ./get-claude-config.sh
+
+# Install and setup
+./install.sh
 ```
 
 ## High-Level Architecture
 
-### MCP Server Structure
-The server implements Model Context Protocol to expose ESPN Fantasy tools to Claude Desktop:
-
+### MCP Server Flow
 ```
-Claude Desktop → MCP Protocol → index.ts → Tool Handlers → ESPN/LLM APIs
-                      ↓                           ↓
-              JSON-RPC over stdio         Service Layer (espnApi, llmManager)
-```
-
-### Authentication & Session Management
-- **ESPN Cookies**: `ESPN_S2` and `ESPN_SWID` stored in environment variables
-- **FantasyPros**: Optional MVP subscription via session cookie or credentials
-- **LLM Providers**: API keys for chosen provider (Claude/OpenAI/Gemini/Perplexity)
-- **Multi-League Support**: Configure multiple leagues with separate team IDs
-
-### Tool Categories & Files
-
-**Core Fantasy Tools** (`src/tools/`)
-- `roster.ts` - Team roster management and analysis
-- `lineup.ts` - Lineup optimization and start/sit advice
-- `waiver.ts` - Waiver wire targets and player analysis
-- `trades.ts` - Trade evaluation and partner finding
-- `simple-enhanced.ts` - Simplified roster access
-
-**Draft Tools**
-- `draft.ts` - Basic draft info and recommendations
-- `enhancedDraft.ts` - FantasyPros integration for expert rankings
-- `liveAuction.ts` - Real-time auction draft assistance
-
-**AI & Automation**
-- `aiWorkflowOrchestrator.ts` - Complex workflow automation
-- `directLLM.ts` - Direct LLM analysis interface
-- `automation.ts` - Automated report generation
-- `feedbackLoop.ts` - Performance tracking and learning
-
-**Advanced Features**
-- `crossLeague.ts` - Multi-league coordination
-- `gameContext.ts` - Weather, news, and game conditions
-- `cost.ts` - LLM usage cost monitoring
-
-### LLM Provider Architecture
-```
-src/services/llm/
-├── manager.ts         # Provider orchestration & fallback logic
-├── types.ts          # Shared interfaces
-└── providers/
-    ├── base.ts       # Abstract provider class
-    ├── claude.ts     # Anthropic implementation
-    ├── openai.ts     # OpenAI GPT implementation
-    ├── gemini.ts     # Google Gemini implementation
-    └── perplexity.ts # Perplexity with web search
+Claude Desktop → JSON-RPC/stdio → index.ts → Tool Registry → Handler Functions
+                                      ↓                           ↓
+                                 Tool Mapping              Service Layer
+                                                    (espnApi, llmManager, etc.)
 ```
 
-**Provider Selection**: Configured via `DEFAULT_LLM_PROVIDER` env variable or runtime switching through `llmConfig.switchProvider()`
+### Dependency Architecture
+```
+mcp-server/
+    ↓
+@fantasy-ai/shared (../shared/)
+    ↓
+External APIs (ESPN, LLMs, FantasyPros)
+```
+
+The shared library provides:
+- `espnApi` - ESPN Fantasy API client with cookie auth
+- `llmConfig` - LLM provider configuration and switching
+- `getRosterTool`, `getMyRoster` - Roster management functions
+- `executeAIWorkflow` - Complex workflow orchestration
+
+### Tool Registration Pattern
+
+Tools are registered in `src/index.ts:188-193` via MCP protocol handlers:
+1. `ListToolsRequestSchema` handler returns available tools
+2. `CallToolRequestSchema` handler routes to specific tool functions
+3. Tools are imported from `src/tools/` directory
+4. Each tool exports an async function with standardized signature
 
 ### Service Layer (`src/services/`)
+
+**Core Services**:
 - `espnApi.ts` - ESPN Fantasy API client with cookie auth
-- `fantasyProsApi.ts` - FantasyPros expert data integration
-- `costMonitor.ts` / `enhancedCostMonitor.ts` - Usage tracking
+- `draftApi.ts` / `enhancedDraftApi.ts` - Draft-specific functionality
+- `fantasyProsApi.ts` - Expert consensus data integration
+
+**LLM Management** (`src/services/llm/`):
+- `manager.ts` - Provider orchestration & fallback logic
+- `providers/` - Implementations for Claude, OpenAI, Gemini, Perplexity
+- Provider selection via `DEFAULT_LLM_PROVIDER` or runtime switching
+
+**Advanced Features**:
+- `costMonitor.ts` / `enhancedCostMonitor.ts` - Usage tracking with limits
 - `automationService.ts` - Scheduled task automation
 - `workflowContext.ts` - Workflow state management
 - `learningEngine.ts` - ML-based performance optimization
 - `abTesting.ts` - A/B testing for strategy optimization
+- `performanceTracker.ts` - Performance metrics tracking
+- `notificationService.ts` - Alert and notification system
+- `weatherApi.ts` / `newsApi.ts` - External data sources
 
 ## Development Patterns
 
 ### Adding New MCP Tools
-1. **Create tool handler**: `src/tools/newTool.ts`
-2. **Export function** with signature: `async (args: ToolArgs) => ToolResponse`
-3. **Register in index.ts**: Import and add to tool registry
-4. **Define types**: Add interfaces to `src/types/`
-5. **Test**: Create test script in root directory
+1. Create tool handler in `src/tools/newTool.ts`
+2. Export async function: `async (args: ToolArgs) => ToolResponse`
+3. Import in `index.ts` and add to tool registry
+4. Define types in `src/types/` if needed
+5. Create test script: `test-newtool.js` or add to `test-all-features.sh`
 
 ### Error Handling Strategy
-- ESPN API errors wrapped with context in `espnApi.ts`
-- LLM fallback chain in `llmManager.ts` (primary → fallback providers)
+- ESPN API errors wrapped with context in service layer
+- LLM fallback chain: primary → fallback providers
 - Cost limits enforced before LLM calls
-- MCP protocol errors returned as structured JSON-RPC errors
+- MCP errors returned as JSON-RPC structured errors
+- All errors logged to stderr for Claude Desktop console
 
-### Environment Configuration
-Required variables in `.env`:
+### Testing Approach
+- Standalone test scripts for each major feature
+- JSON-RPC protocol testing via echo/pipe
+- Node.js scripts for API integration testing
+- No formal test framework (Jest/Mocha) - uses direct execution
+
+## Environment Configuration
+
+Required `.env` variables:
 ```bash
 # ESPN Authentication (required)
 ESPN_S2=<cookie_value>
 ESPN_SWID={<uuid>}
 
-# League Configuration (at least one required)
+# League Configuration (multiple supported)
 LEAGUE_1_ID=<id>
 LEAGUE_1_TEAM_ID=<team_id>
+LEAGUE_2_ID=<id>           # Optional second league
+LEAGUE_2_TEAM_ID=<team_id>
 
 # LLM Provider (at least one required)
-GEMINI_API_KEY=<key>          # Most cost-effective
-CLAUDE_API_KEY=<key>           # Best reasoning
-OPENAI_API_KEY=<key>           # Good general purpose
-PERPLEXITY_API_KEY=<key>       # Real-time web data
+DEFAULT_LLM_PROVIDER=gemini  # gemini|claude|openai|perplexity
+GEMINI_API_KEY=<key>
+CLAUDE_API_KEY=<key>
+OPENAI_API_KEY=<key>
+PERPLEXITY_API_KEY=<key>
 
 # Optional Enhancements
-FANTASYPROS_SESSION_ID=<cookie>  # Expert consensus data
-DAILY_COST_LIMIT=2.00           # Cost controls
+FANTASYPROS_SESSION_ID=<cookie>
+FANTASYPROS_USERNAME=<email>    # Alternative auth
+FANTASYPROS_PASSWORD=<password>
+DAILY_COST_LIMIT=2.00
+WEEKLY_COST_LIMIT=10.00
+MONTHLY_COST_LIMIT=35.00
 ```
 
 ## Claude Desktop Integration
 
-Configuration location:
+### Configuration Location
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-Example configuration:
+### Required Configuration Structure
 ```json
 {
   "mcpServers": {
@@ -167,58 +193,72 @@ Example configuration:
       "command": "node",
       "args": ["/absolute/path/to/fantasy-poc/mcp-server/dist/index.js"],
       "env": {
-        "ESPN_S2": "...",
-        "ESPN_SWID": "{...}",
-        "LEAGUE_1_ID": "...",
-        "LEAGUE_1_TEAM_ID": "...",
-        "GEMINI_API_KEY": "..."
+        // Copy all required env vars from .env
       }
     }
   }
 }
 ```
 
-## Current Implementation Status
+### Integration Checklist
+1. Build server: `npm run build`
+2. Configure `.env` with valid cookies
+3. Update Claude Desktop config with absolute path
+4. Restart Claude Desktop
+5. Verify with "Show me my fantasy roster" query
 
-### Working Features
-✅ 30+ MCP tools exposed to Claude Desktop
-✅ Multi-league support with team switching
-✅ Four LLM provider integrations with fallback
-✅ FantasyPros expert consensus integration
-✅ Real-time draft assistance (snake & auction)
-✅ Cost monitoring with limits and alerts
-✅ Performance tracking and A/B testing framework
+## Common Issues & Solutions
 
-### Known Limitations
-- ESPN cookies expire after ~30 days (manual refresh required)
-- FantasyPros session expires frequently
-- No database persistence (in-memory caching only)
-- LLM costs can accumulate quickly without limits
-- Draft tools require manual draft room navigation
+### ESPN Authentication
+- **Cookies expired**: Refresh from browser DevTools → Application → Cookies
+- **Invalid SWID**: Must include curly braces `{uuid}`
+- **Rate limiting**: No built-in handling, manual retry needed
 
-## Testing & Debugging
+### LLM Provider Issues
+- **No provider configured**: Set at least one API key
+- **Cost limit exceeded**: Check `cost_tracking.json`, adjust limits
+- **Fallback not working**: Ensure multiple providers configured
 
-### MCP Protocol Testing
+### MCP Connection
+- **Path issues**: Must use absolute path in Claude config
+- **Build missing**: Run `npm run build` before starting
+- **Shared library error**: Run full build, not `build:local`
+
+### Testing & Debugging
 ```bash
-# List all available tools
+# Check if server starts
+node dist/index.js
+
+# Test tool listing
 echo '{"jsonrpc":"2.0","method":"tools/list","id":1}' | node dist/index.js | jq
 
-# Call specific tool
-echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"my_roster","arguments":{}},"id":2}' | node dist/index.js | jq
+# Check ESPN connection
+node test-espn-only.js
+
+# Verify LLM configuration
+node -e "import('./dist/services/llm/manager.js').then(m => console.log(m.llmManager.getCurrentProvider()))"
 ```
 
-### Common Issues
-- **"No LLM configuration found"**: Set at least one provider's API key in `.env`
-- **"ESPN authentication failed"**: Refresh cookies from browser DevTools
-- **"FantasyPros not initialized"**: Call `initialize_fantasypros` tool first
-- **Claude Desktop not connecting**: Check absolute path in config, rebuild, restart Claude
+## Project Structure
 
-## Cost Management
+```
+mcp-server/
+├── src/
+│   ├── index.ts              # MCP server entry, tool registration
+│   ├── tools/                # MCP tool implementations (30+ tools)
+│   ├── services/             # Service layer
+│   │   └── llm/             # LLM provider management
+│   └── types/               # TypeScript type definitions
+├── dist/                     # Built JavaScript output
+├── test-*.{sh,js}           # Test scripts
+└── data/                    # Cache and tracking files
+```
 
-The system tracks LLM usage costs with configurable limits:
-- Per-analysis limit (default: $1.00)
-- Daily limit (default: $2.00)
-- Weekly limit (default: $10.00)
-- Monthly limit (default: $35.00)
+## Known Limitations
 
-Monitor costs using the `get_cost_summary` tool or check `cost_tracking.json`.
+- ESPN cookies expire ~30 days (manual refresh required)
+- FantasyPros session expires frequently
+- No database persistence (in-memory caching)
+- Single-threaded Node.js process
+- No WebSocket support for real-time updates
+- Draft tools require manual draft room navigation

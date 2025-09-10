@@ -26,8 +26,8 @@ router.get('/league/:leagueId', async (req: Request, res: Response) => {
       });
     }
     
-    // Use 2024 season and the new ESPN API base URL (changed in April 2024)
-    const year = 2024;
+    // Use 2025 season for current fantasy football season
+    const year = 2025;
     const url = `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${leagueId}`;
     
     // Clean the cookies

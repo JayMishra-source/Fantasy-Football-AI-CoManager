@@ -233,15 +233,50 @@ export async function analyzePlayerTool(args: {
  */
 async function enhanceWaiverPlayersWithFantasyPros(players: Player[], fpRankings: any[]): Promise<Player[]> {
   const enhancedPlayers = players.map(player => {
-    // Find matching FantasyPros ranking by name
-    const fpPlayer = fpRankings.find(fp => 
-      fp.name && (
-        fp.name.toLowerCase().includes(player.lastName.toLowerCase()) ||
-        player.fullName.toLowerCase().includes(fp.name.toLowerCase())
-      )
-    );
+    // Normalize names for better matching (same logic as lineup tool)
+    const normalizePlayerName = (name: string) => {
+      return name.toLowerCase()
+        .replace(/\bjr\.?$/i, '')
+        .replace(/\bsr\.?$/i, '') 
+        .replace(/\biii$/i, '')
+        .replace(/\bii$/i, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    };
+    
+    const normalizedPlayerName = normalizePlayerName(player.fullName);
+    const normalizedLastName = normalizePlayerName(player.lastName);
+    
+    // Find matching FantasyPros ranking by name AND position
+    const fpPlayer = fpRankings.find(fp => {
+      if (!fp.name) return false;
+      
+      const normalizedFpName = normalizePlayerName(fp.name);
+      
+      // First check position match - critical for avoiding wrong player data
+      const positionMatch = fp.position && player.position && 
+        (fp.position.toUpperCase() === player.position.toUpperCase() ||
+         (fp.position.toUpperCase() === 'DST' && player.position.toUpperCase() === 'D/ST'));
+      
+      if (!positionMatch) {
+        return false; // Skip if positions don't match
+      }
+      
+      // Then check name matching with improved logic
+      const nameMatch = (
+        normalizedFpName.includes(normalizedLastName) ||
+        normalizedPlayerName.includes(normalizedFpName) ||
+        // Check if last names match exactly
+        normalizedFpName.split(' ').pop() === normalizedLastName ||
+        // Check if first and last names are in the FantasyPros name
+        (player.firstName && normalizedFpName.includes(normalizePlayerName(player.firstName)))
+      );
+      
+      return nameMatch;
+    });
     
     if (fpPlayer) {
+      console.log(`✅ FantasyPros waiver match: ${player.fullName} (${player.position}) -> ${fpPlayer.name} (${fpPlayer.position}) Rank: ${fpPlayer.rank}`);
       // Enhance player with FantasyPros data for better waiver priority
       return {
         ...player,
@@ -254,6 +289,8 @@ async function enhanceWaiverPlayersWithFantasyPros(players: Player[], fpRankings
         // Add waiver priority boost for highly ranked players
         fantasyProsBoost: fpPlayer.rank < 50 ? 2 : fpPlayer.rank < 100 ? 1 : 0
       };
+    } else {
+      console.log(`⚠️ No FantasyPros waiver match found for: ${player.fullName} (${player.position})`);
     }
     
     return player;

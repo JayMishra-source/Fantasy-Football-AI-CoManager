@@ -62,15 +62,109 @@ export async function executeAIWorkflow(args: {
             teamId: league.teamId 
           });
           
+          // VALIDATION: Fix weekly projections and IR classification before sending to LLM
+          const validateAndFixPlayer = (player: any) => {
+            console.log(`🔍 DEBUG VALIDATION: Processing ${player.fullName || 'Unknown'} - Position: ${player.position || 'Unknown'}, ProjectedPoints: ${player.projectedPoints}`);
+            
+            // Fix weekly projections - be VERY aggressive about detecting season totals
+            if (player.projectedPoints && player.projectedPoints > 0) {
+              const position = player.position;
+              
+              // Much more aggressive caps - anything above these is definitely a season total
+              let maxReasonableWeekly = 15; // Default conservative cap
+              if (position === 'QB') maxReasonableWeekly = 30;
+              else if (position === 'RB') maxReasonableWeekly = 20;
+              else if (position === 'WR') maxReasonableWeekly = 20;
+              else if (position === 'TE') maxReasonableWeekly = 15;
+              else if (position === 'K') maxReasonableWeekly = 12;
+              else if (position === 'DST') maxReasonableWeekly = 15;
+              
+              console.log(`🎯 VALIDATION: ${player.fullName} (${position}) has projection ${player.projectedPoints}, max reasonable: ${maxReasonableWeekly}`);
+              
+              // If projection is over 50, it's definitely a season total regardless of position
+              if (player.projectedPoints > 50 || player.projectedPoints > maxReasonableWeekly) {
+                console.warn(`🔧 AGGRESSIVE FIX: ${player.fullName} (${position}) projection ${player.projectedPoints} -> ${(player.projectedPoints / 17).toFixed(1)} (was clearly season total)`);
+                
+                // Store original as season total and estimate weekly
+                player.seasonProjectedPoints = player.projectedPoints;
+                player.projectedPoints = Math.round((player.projectedPoints / 17) * 10) / 10;
+                
+                console.log(`✅ AFTER FIX: ${player.fullName} now has weekly projection: ${player.projectedPoints}, season total: ${player.seasonProjectedPoints}`);
+                
+                // Final safety cap
+                if (player.projectedPoints > maxReasonableWeekly) {
+                  player.projectedPoints = maxReasonableWeekly;
+                  console.warn(`🔧 FINAL CAP: ${player.fullName} capped at ${maxReasonableWeekly}`);
+                }
+              } else {
+                console.log(`✓ VALIDATION: ${player.fullName} projection ${player.projectedPoints} looks reasonable for ${position}`);
+              }
+            } else {
+              console.log(`⚠️ VALIDATION: ${player.fullName} has no valid projectedPoints: ${player.projectedPoints}`);
+            }
+            return player;
+          };
+
+          // Fix IR classification - only truly injured players should be in IR
+          const validateIRPlayers = (irPlayers: any[]) => {
+            console.log(`🔍 DEBUG IR VALIDATION: Processing ${irPlayers.length} IR players`);
+            
+            const validIRPlayers = irPlayers.filter(player => {
+              console.log(`🏥 IR CHECK: ${player.fullName} - Status: '${player.injuryStatus || 'None'}'`);
+              
+              const hasRealInjury = player.injuryStatus && 
+                !['ACTIVE', 'PROBABLE'].includes(player.injuryStatus.toUpperCase());
+              
+              if (!hasRealInjury) {
+                console.warn(`🔧 REMOVING from IR: ${player.fullName} (status: ${player.injuryStatus || 'None'}) - should not be in IR!`);
+                return false;
+              } else {
+                console.log(`✓ IR VALID: ${player.fullName} has real injury status: ${player.injuryStatus}`);
+                return true;
+              }
+            });
+            
+            // Move healthy players from IR to bench
+            const incorrectlyPlacedPlayers = irPlayers.filter(player => {
+              const hasRealInjury = player.injuryStatus && 
+                !['ACTIVE', 'PROBABLE'].includes(player.injuryStatus.toUpperCase());
+              return !hasRealInjury;
+            });
+            
+            console.log(`✅ IR VALIDATION COMPLETE: ${validIRPlayers.length} valid IR players, ${incorrectlyPlacedPlayers.length} moved to bench`);
+            return { validIRPlayers, incorrectlyPlacedPlayers };
+          };
+
+          // Apply fixes to all player arrays with logging for GitHub Actions
+          console.log(`🔧 VALIDATION: Processing ${roster.starters?.length || 0} starters, ${roster.bench?.length || 0} bench, ${roster.injuredReserve?.length || 0} IR players...`);
+          
+          const fixedStarters = (roster.starters || []).map(validateAndFixPlayer);
+          const fixedBench = (roster.bench || []).map(validateAndFixPlayer);
+          const irValidation = validateIRPlayers(roster.injuredReserve || []);
+          
+          // Fix projections for valid IR players too
+          const fixedIRPlayers = irValidation.validIRPlayers.map(validateAndFixPlayer);
+          
+          // Add incorrectly placed IR players to bench
+          const finalBench = [...fixedBench, ...irValidation.incorrectlyPlacedPlayers.map(validateAndFixPlayer)];
+          
+          console.log(`✅ VALIDATION COMPLETE: ${fixedStarters.length} starters, ${finalBench.length} bench (${irValidation.incorrectlyPlacedPlayers.length} moved from IR), ${fixedIRPlayers.length} IR`);
+          
+          // Log sample of fixed projections for verification
+          if (fixedStarters.length > 0) {
+            const sample = fixedStarters[0];
+            console.log(`📊 Sample fixed starter: ${sample.fullName} - ${sample.projectedPoints} weekly pts (season: ${sample.seasonProjectedPoints || 'none'})`);
+          }
+
           return {
             leagueId: league.leagueId,
             teamId: league.teamId,
             leagueName: leagueInfo.name || league.name || 'Unknown League',
             teamName: (roster as any).teamName || 'My Team',
-            starters: roster.starters || [],
-            bench: roster.bench || [],
+            starters: fixedStarters,
+            bench: finalBench,
             availablePlayers: rosterWithWaivers.availablePlayers || {},
-            injuredReserve: roster.injuredReserve || [],
+            injuredReserve: fixedIRPlayers,
             roster: roster
           };
         } catch (error: any) {
@@ -357,13 +451,14 @@ Use web_search() to check for any breaking injury news, weather concerns, or lin
 
     console.log('🧠 Generating analysis with real LLM...');
     
-    // Debug player data to understand projection values
+    // Debug player data to understand projection values (trusting ESPN API processing)
     console.log('\n🔍 ========== SAMPLE PLAYER DATA DEBUG ==========');
     if (leagueData[0]?.starters?.length > 0) {
       console.log('Analyzing first three starters for projection data:');
       leagueData[0].starters.slice(0, 3).forEach((player: any, index: number) => {
         console.log(`Player ${index + 1}: ${player.fullName} (${player.position})`);
         console.log('  - Projected Points:', player.projectedPoints);
+        console.log('  - Season Projected Points:', player.seasonProjectedPoints || 'Not set');
         console.log('  - Percent Owned:', player.percentOwned);
         console.log('  - Percent Started:', player.percentStarted);
         console.log('  - Raw stats data:', (player as any).stats?.slice(0, 3) || 'No stats');

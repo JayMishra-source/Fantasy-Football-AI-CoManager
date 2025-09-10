@@ -1,5 +1,13 @@
 import axios, { AxiosInstance } from 'axios';
 import { ESPNCookies, LeagueInfo, TeamRoster, Player } from '../types/espn.js';
+import { 
+  isStartingPosition, 
+  isBenchPosition, 
+  isIRPosition, 
+  getPositionName,
+  LINEUP_SLOT_NAMES,
+  detectLeagueSettings 
+} from '../constants/espnSlots.js';
 
 export class ESPNApiService {
   private axios: AxiosInstance;
@@ -90,14 +98,18 @@ export class ESPNApiService {
     try {
       const currentWeek = this.getCurrentWeek();
       
+      // Try to get both current week and projected stats
       const response = await this.axios.get(
         `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
         { 
           params: { 
-            view: 'mRoster'
+            view: 'mRoster',
+            scoringPeriodId: currentWeek // Request specific week data
           } 
         }
       );
+      
+      console.log(`🔍 ESPN API Request - League: ${leagueId}, Current Week: ${currentWeek}, Year: ${this.year}`);
       
       const team = response.data.teams?.find((t: any) => t.id === parseInt(teamId));
       if (!team) {
@@ -110,32 +122,200 @@ export class ESPNApiService {
         const playerData = entry.playerPoolEntry?.player || {};
         const stats = playerData.stats || [];
         
-        // ESPN stats structure:
-        // stats[0] = actual stats for current period
-        // stats[1] = projected stats for current period (weekly projections)
-        // Different periods may have season totals vs weekly projections
+        // Optional debug logging (enable by setting DEBUG_ESPN environment variable)
+        if (process.env.DEBUG_ESPN && playerData.fullName) {
+          console.log(`\n=== DEBUG: ${playerData.fullName} (${this.getPositionName(playerData.defaultPositionId || 0)}) ===`);
+          console.log('Raw stats array length:', stats.length);
+          stats.forEach((stat: any, index: number) => {
+            console.log(`Stats[${index}]:`, {
+              seasonId: stat.seasonId,
+              scoringPeriodId: stat.scoringPeriodId,
+              statSourceId: stat.statSourceId,
+              statSplitTypeId: stat.statSplitTypeId,
+              appliedTotal: stat.appliedTotal,
+              appliedAverage: stat.appliedAverage
+            });
+          });
+        }
+        
+        // ESPN stats structure analysis:
+        // We need to find the correct weekly projection stat
+        // Different statSourceId values mean different things:
+        // - statSourceId 0 = actual stats
+        // - statSourceId 1 = projected stats
+        // Different scoringPeriodId values:
+        // - specific week number = that week's data
+        // - 0 or null = season total
         
         let weeklyProjection = 0;
         let seasonTotal = 0;
         let actualPoints = 0;
         
-        // Simplified stats processing - use what's available
-        // ESPN usually provides current stats in stats[0] and projections in stats[1]
-        if (stats.length > 0) {
-          actualPoints = stats[0].appliedTotal || 0;
-        }
-        if (stats.length > 1) {
-          weeklyProjection = stats[1].appliedTotal || 0;
+        // Find current week for better projection targeting
+        const currentWeek = this.getCurrentWeek();
+        
+        // Debug: Log all available stats to understand ESPN's data structure
+        if (process.env.DEBUG_ESPN && playerData.fullName) {
+          console.log(`\n🔍 DEBUG ${playerData.fullName} - All stats:`, JSON.stringify(stats, null, 2));
         }
         
-        // If we still need season totals, look for them in the stats array
-        for (const stat of stats) {
-          if (stat.seasonId === this.year && stat.statSourceId === 1 && !stat.scoringPeriodId) {
-            seasonTotal = stat.appliedTotal || 0;
-            break;
+        // Look for weekly projections first (statSourceId 1 with current week)
+        const weeklyProjectionStat = stats.find((stat: any) => 
+          stat.statSourceId === 1 && 
+          stat.scoringPeriodId === currentWeek
+        );
+        
+        if (weeklyProjectionStat) {
+          weeklyProjection = weeklyProjectionStat.appliedTotal || 0;
+          if (process.env.DEBUG_ESPN && playerData.fullName) {
+            console.log(`✅ Found weekly projection for week ${currentWeek}:`, weeklyProjection);
+          }
+        } else {
+          if (process.env.DEBUG_ESPN && playerData.fullName) {
+            console.log(`❌ No weekly projection found for week ${currentWeek} with statSourceId=1`);
+          }
+          
+          // Try different approaches to find weekly data
+          // 1. Look for projection stat with current week (but NOT actual points - statSourceId 0)
+          const currentWeekProjectionStat = stats.find((stat: any) => 
+            stat.scoringPeriodId === currentWeek && 
+            stat.statSourceId === 1 && 
+            stat.appliedTotal > 0 && 
+            stat.appliedTotal < 100
+          );
+          if (currentWeekProjectionStat) {
+            weeklyProjection = currentWeekProjectionStat.appliedTotal;
+            if (process.env.DEBUG_ESPN && playerData.fullName) {
+              console.log(`📊 Using current week projection stat:`, weeklyProjection);
+            }
+          } else {
+            // 2. Fallback: Find the smallest reasonable projection (likely weekly)
+            const projectionStats = stats.filter((stat: any) => 
+              stat.statSourceId === 1 && stat.appliedTotal > 0
+            ).sort((a: any, b: any) => a.appliedTotal - b.appliedTotal);
+            
+            if (projectionStats.length > 0) {
+              const smallestProjection = projectionStats[0].appliedTotal;
+              if (smallestProjection < 50) {
+                // This looks like a reasonable weekly projection
+                weeklyProjection = smallestProjection;
+                if (process.env.DEBUG_ESPN && playerData.fullName) {
+                  console.log(`🎯 Using smallest projection as weekly:`, weeklyProjection);
+                }
+              } else {
+                // All projections are large, they're likely season totals
+                // Use the largest one as season total and estimate weekly
+                const largestProjection = projectionStats[projectionStats.length - 1].appliedTotal;
+                weeklyProjection = largestProjection / 17;
+                if (process.env.DEBUG_ESPN && playerData.fullName) {
+                  console.log(`📉 No weekly projection found, estimated from largest season total (${largestProjection}):`, weeklyProjection.toFixed(1));
+                }
+              }
+            } else {
+              // No projection stats at all, use a conservative default
+              weeklyProjection = 0;
+              if (process.env.DEBUG_ESPN && playerData.fullName) {
+                console.log(`❌ No projection stats found, using 0`);
+              }
+            }
           }
         }
         
+        // Find actual points for current week
+        const actualStat = stats.find((stat: any) => 
+          stat.statSourceId === 0 && 
+          stat.scoringPeriodId === currentWeek
+        );
+        
+        if (actualStat) {
+          actualPoints = actualStat.appliedTotal || 0;
+        }
+        
+        // Find season total projections (statSourceId 1, no specific scoring period)
+        const seasonProjectionStat = stats.find((stat: any) => 
+          stat.statSourceId === 1 && 
+          (!stat.scoringPeriodId || stat.scoringPeriodId === 0)
+        );
+        
+        if (seasonProjectionStat) {
+          seasonTotal = seasonProjectionStat.appliedTotal || 0;
+          if (process.env.DEBUG_ESPN && playerData.fullName) {
+            console.log(`Season total projection:`, seasonTotal);
+          }
+        }
+        
+        // IMPROVED: More intelligent weekly vs season projection detection
+        // Only convert if projection is clearly a season total (much higher thresholds)
+        const playerPosition = this.getPositionName(playerData.defaultPositionId || 0);
+        
+        // Set realistic but generous weekly maximums - allow for breakout performances
+        const reasonableWeeklyMax = {
+          'QB': 50,    // Elite QBs can score 40+ in good matchups
+          'RB': 40,    // Top RBs can have 35+ point games
+          'WR': 40,    // Elite WRs can have explosive games
+          'TE': 30,    // Top TEs can have big games
+          'D/ST': 35,  // Defenses can have huge games
+          'K': 25      // Kickers rarely exceed 20
+        }[playerPosition] || 35; // Default for unknown positions
+        
+        // Additional check: if we have a season total and weekly projection, 
+        // use that to determine if the weekly projection seems reasonable
+        let projectionSeemsSeasonal = false;
+        
+        if (seasonTotal > 0 && weeklyProjection > 0) {
+          // If weekly projection is more than 30% of season total, it's likely seasonal
+          const weeklyPercentOfSeason = (weeklyProjection / seasonTotal) * 100;
+          if (weeklyPercentOfSeason > 30) {
+            projectionSeemsSeasonal = true;
+            console.warn(`⚠️ PROJECTION ANALYSIS: ${playerData.fullName} weekly projection (${weeklyProjection}) is ${weeklyPercentOfSeason.toFixed(1)}% of season total (${seasonTotal})`);
+          }
+        }
+        
+        // Only convert if BOTH conditions are met: exceeds threshold AND seems seasonal
+        if (weeklyProjection > reasonableWeeklyMax && 
+            (projectionSeemsSeasonal || weeklyProjection > 100)) { // 100+ is almost certainly seasonal
+          console.warn(`⚠️ PROJECTION TRANSFORM: ${playerData.fullName} (${playerPosition})`);
+          console.warn(`   Original weekly projection: ${weeklyProjection}`);
+          console.warn(`   Threshold for ${playerPosition}: ${reasonableWeeklyMax}`);
+          console.warn(`   Season analysis: ${projectionSeemsSeasonal ? 'Seems seasonal' : 'Extremely high (>100)'}`);
+          console.warn(`   Converting to weekly estimate`);
+          
+          // Store as season total and estimate weekly
+          if (seasonTotal === 0) {
+            seasonTotal = weeklyProjection;
+          }
+          weeklyProjection = weeklyProjection / 17; // Estimate weekly from season total
+          
+          console.warn(`   New weekly estimate: ${weeklyProjection.toFixed(1)}`);
+          console.warn(`   Season total stored: ${seasonTotal}`);
+        } else if (weeklyProjection > reasonableWeeklyMax) {
+          // Log high but plausible projections without converting
+          console.log(`ℹ️ HIGH PROJECTION KEPT: ${playerData.fullName} (${playerPosition}) - ${weeklyProjection} pts (above ${reasonableWeeklyMax} threshold but seems legitimate)`);
+        }
+        
+        // Final safety check: Only cap extremely unrealistic projections (200+)
+        if (weeklyProjection > 200) {
+          console.warn(`⚠️ EXTREME PROJECTION CAP: ${playerData.fullName} has unrealistic projection (${weeklyProjection}), capping at 200`);
+          weeklyProjection = 200;
+        }
+        
+        if (process.env.DEBUG_ESPN && playerData.fullName) {
+          console.log(`Final values - Weekly: ${weeklyProjection}, Season: ${seasonTotal}, Actual: ${actualPoints}`);
+          console.log('=== END DEBUG ===\n');
+        }
+        
+        const finalProjectedPoints = weeklyProjection > 0 ? weeklyProjection : (seasonTotal > 0 ? seasonTotal / 17 : 0);
+        
+        // Log final player data creation for validation
+        if (finalProjectedPoints !== weeklyProjection || seasonTotal > 0) {
+          console.log(`📊 FINAL PLAYER DATA: ${playerData.fullName || 'Unknown'}`);
+          console.log(`   Position: ${this.getPositionName(playerData.defaultPositionId || 0)}`);
+          console.log(`   Final projected points (weekly): ${finalProjectedPoints.toFixed(1)}`);
+          console.log(`   Season projected points: ${seasonTotal || 'Not set'}`);
+          console.log(`   Actual points: ${actualPoints}`);
+          console.log(`   Data source: ${weeklyProjection > 0 ? 'Weekly projection' : 'Estimated from season'}`);
+        }
+
         return {
           id: playerData.id?.toString() || '',
           firstName: playerData.firstName || '',
@@ -144,7 +324,7 @@ export class ESPNApiService {
           position: this.getPositionName(playerData.defaultPositionId || 0),
           team: playerData.proTeamId ? this.getTeamAbbreviation(playerData.proTeamId) : 'FA',
           points: actualPoints,
-          projectedPoints: weeklyProjection > 0 ? weeklyProjection : (seasonTotal > 0 ? seasonTotal / 17 : 0), // Use weekly if available, otherwise estimate from season
+          projectedPoints: finalProjectedPoints, // Use weekly if available, otherwise estimate from season
           seasonProjectedPoints: seasonTotal, // Add season total as separate field
           injuryStatus: playerData.injuryStatus || undefined,
           percentStarted: playerData.ownership?.percentStarted || 0,
@@ -152,12 +332,86 @@ export class ESPNApiService {
         };
       };
 
+      // Process all players first to get injury status information
+      const processedRoster = roster.map(processPlayer);
+      
+      // Detect league configuration for better categorization
+      const usedSlotIds = roster.map((entry: any) => entry.lineupSlotId);
+      const leagueSettings = detectLeagueSettings(usedSlotIds);
+      
+      console.log(`📊 League configuration detected:`, {
+        hasIDP: leagueSettings.hasIDP,
+        hasSuperflex: leagueSettings.hasSuperflex,
+        hasTeamQB: leagueSettings.hasTeamQB,
+        uniqueSlots: [...new Set(usedSlotIds)].sort() as number[]
+      });
+
+      // Enhanced roster categorization with proper slot validation
+      const starters: Player[] = [];
+      const bench: Player[] = [];
+      const injuredReserve: Player[] = [];
+      const unknownSlots: Player[] = [];
+
+      processedRoster.forEach((player: Player, index: number) => {
+        const entry = roster[index];
+        const slotId = entry.lineupSlotId;
+        const slotName = getPositionName(slotId);
+        
+        // Handle IR validation (existing robust logic)
+        if (isIRPosition(slotId)) {
+          const hasRealInjury = player.injuryStatus && 
+            !['ACTIVE', 'PROBABLE'].includes(player.injuryStatus.toString().toUpperCase());
+          
+          if (hasRealInjury) {
+            console.log(`✅ IR: ${player.fullName} properly in IR slot with injury status: ${player.injuryStatus}`);
+            injuredReserve.push(player);
+          } else {
+            console.warn(`⚠️ IR FIX: ${player.fullName} in IR slot but injury status '${player.injuryStatus}' - moving to bench`);
+            bench.push(player);
+          }
+          return;
+        }
+        
+        // Handle bench players
+        if (isBenchPosition(slotId)) {
+          console.log(`🪑 BENCH: ${player.fullName} in bench slot`);
+          bench.push(player);
+          return;
+        }
+        
+        // Handle known starting positions
+        if (isStartingPosition(slotId)) {
+          console.log(`🏁 STARTER: ${player.fullName} in starting ${slotName} slot (${slotId})`);
+          starters.push(player);
+          return;
+        }
+        
+        // Handle unknown/unsupported slot IDs
+        console.warn(`❓ UNKNOWN SLOT: ${player.fullName} in unrecognized slot ID ${slotId} - adding to bench for safety`);
+        unknownSlots.push(player);
+        bench.push(player); // Default unknown slots to bench for safety
+      });
+
+      // Log final categorization summary
+      console.log(`📋 ROSTER SUMMARY for team ${teamId}:`);
+      console.log(`   Starters: ${starters.length} players`);
+      console.log(`   Bench: ${bench.length} players (${unknownSlots.length} from unknown slots)`);
+      console.log(`   IR: ${injuredReserve.length} players`);
+      
+      if (unknownSlots.length > 0) {
+        console.warn(`⚠️ WARNING: ${unknownSlots.length} players had unknown slot IDs and were moved to bench:`);
+        unknownSlots.forEach(player => {
+          const entry = roster[processedRoster.indexOf(player)];
+          console.warn(`   - ${player.fullName}: slot ID ${entry.lineupSlotId}`);
+        });
+      }
+
       return {
         teamId: parseInt(teamId),
         teamName: team.name || `Team ${teamId}`,
-        starters: roster.filter((entry: any) => entry.lineupSlotId !== 20 && entry.lineupSlotId !== 23).map(processPlayer),
-        bench: roster.filter((entry: any) => entry.lineupSlotId === 20).map(processPlayer),
-        injuredReserve: roster.filter((entry: any) => entry.lineupSlotId === 23).map(processPlayer)
+        starters,
+        bench,
+        injuredReserve
       };
     } catch (error: any) {
       if (error.message.includes('Team') && error.message.includes('not found')) {
@@ -177,12 +431,13 @@ export class ESPNApiService {
   }
 
   async getPlayers(leagueId: string): Promise<Player[]> {
+    const currentWeek = this.getCurrentWeek();
     const response = await this.axios.get(
       `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
       { 
         params: { 
-          view: 'kona_player_info'
-          // Remove scoringPeriodId: 0 to get current season data
+          view: 'kona_player_info',
+          scoringPeriodId: currentWeek // Request current week data
         } 
       }
     );
@@ -193,11 +448,13 @@ export class ESPNApiService {
 
   async getAvailablePlayers(leagueId: string): Promise<Player[]> {
     try {
+      const currentWeek = this.getCurrentWeek();
       const response = await this.axios.get(
         `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
         { 
           params: { 
-            view: 'kona_player_info'
+            view: 'kona_player_info',
+            scoringPeriodId: currentWeek // Request current week data
           },
           headers: {
             'X-Fantasy-Filter': JSON.stringify({
@@ -220,11 +477,13 @@ export class ESPNApiService {
         // Try alternative approach without the filter for troubleshooting
         console.warn('⚠️ Fantasy filter failed, trying without filter...');
         try {
+          const currentWeek = this.getCurrentWeek();
           const response = await this.axios.get(
             `/seasons/${this.year}/segments/0/leagues/${leagueId}`,
             { 
               params: { 
-                view: 'kona_player_info'
+                view: 'kona_player_info',
+                scoringPeriodId: currentWeek // Request current week data
               }
             }
           );
@@ -273,6 +532,43 @@ export class ESPNApiService {
 
   private processPlayerData(playerData: any): Player {
     const player = playerData.player || playerData;
+    const stats = player.stats || [];
+    
+    // Use same logic as roster processing for consistency
+    const currentWeek = this.getCurrentWeek();
+    let weeklyProjection = 0;
+    let actualPoints = 0;
+    
+    // Look for weekly projections first
+    const weeklyProjectionStat = stats.find((stat: any) => 
+      stat.statSourceId === 1 && 
+      stat.scoringPeriodId === currentWeek
+    );
+    
+    if (weeklyProjectionStat) {
+      weeklyProjection = weeklyProjectionStat.appliedTotal || 0;
+    } else {
+      // Fallback to any projection stat
+      const anyProjectionStat = stats.find((stat: any) => stat.statSourceId === 1);
+      if (anyProjectionStat) {
+        weeklyProjection = anyProjectionStat.appliedTotal || 0;
+        // If this looks like a season total (>100), estimate weekly
+        if (weeklyProjection > 100) {
+          weeklyProjection = weeklyProjection / 17;
+        }
+      }
+    }
+    
+    // Find actual points
+    const actualStat = stats.find((stat: any) => 
+      stat.statSourceId === 0 && 
+      stat.scoringPeriodId === currentWeek
+    );
+    
+    if (actualStat) {
+      actualPoints = actualStat.appliedTotal || 0;
+    }
+    
     return {
       id: player.id?.toString() || '',
       firstName: player.firstName || '',
@@ -280,8 +576,8 @@ export class ESPNApiService {
       fullName: player.fullName || '',
       position: player.defaultPositionId ? this.getPositionName(player.defaultPositionId) : 'Unknown',
       team: player.proTeamId ? this.getTeamAbbreviation(player.proTeamId) : 'FA',
-      points: player.stats?.[0]?.appliedTotal || 0,
-      projectedPoints: player.stats?.[1]?.appliedTotal || 0,
+      points: actualPoints,
+      projectedPoints: weeklyProjection,
       injuryStatus: player.injuryStatus || undefined,
       percentStarted: player.ownership?.percentStarted || 0,
       percentOwned: player.ownership?.percentOwned || 0
@@ -289,10 +585,31 @@ export class ESPNApiService {
   }
 
   private getPositionName(positionId: number): string {
-    const positions: { [key: number]: string } = {
-      1: 'QB', 2: 'RB', 3: 'WR', 4: 'TE', 5: 'K', 16: 'DST'
+    // ESPN Player Position IDs (different from lineup slot IDs)
+    const playerPositions: { [key: number]: string } = {
+      0: 'QB',   // Quarterback
+      1: 'QB',   // Quarterback (alternative mapping)
+      2: 'RB',   // Running Back
+      3: 'WR',   // Wide Receiver  
+      4: 'TE',   // Tight End
+      5: 'K',    // Kicker
+      16: 'D/ST', // Defense/Special Teams
+      
+      // IDP positions
+      6: 'DT',   // Defensive Tackle
+      7: 'DE',   // Defensive End
+      8: 'LB',   // Linebacker  
+      9: 'DL',   // Defensive Line
+      10: 'CB',  // Cornerback
+      11: 'S',   // Safety
+      12: 'DB',  // Defensive Back
+      13: 'DP',  // Defensive Player
+      
+      // Special positions
+      14: 'P',   // Punter
+      15: 'HC'   // Head Coach
     };
-    return positions[positionId] || 'Unknown';
+    return playerPositions[positionId] || `UNKNOWN_POS_${positionId}`;
   }
 
   private getTeamAbbreviation(teamId: number): string {

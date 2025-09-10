@@ -6,7 +6,7 @@
     "patterns_learned": 0,
     "analytics_generated": false,
     "seasonal_insights": 0,
-    "processing_time": 225
+    "processing_time": 178
   },
   "performance_grade": "F",
   "key_insights": [],
@@ -19,7 +19,7 @@
     "Review GitHub Actions logs for detailed error",
     "Test ESPN API access manually"
   ],
-  "timestamp": "2025-09-08T22:41:05.727Z",
+  "timestamp": "2025-09-09T05:35:17.140Z",
   "data_verification": {
     "espn_authenticated": true,
     "espn_data_source": "ESPN Fantasy API",
@@ -31,7 +31,7 @@
   },
   "error_context": {
     "mode": "full",
-    "week": 1,
+    "week": 2,
     "leagues_configured": 0,
     "error_type": "Error",
     "possible_causes": [
