@@ -9,17 +9,22 @@ export interface MCPSearchResult {
 export class MCPClient {
   private serverProcess: any = null;
   private isConnected: boolean = false;
+  private connectionAttempts: number = 0;
+  private maxConnectionAttempts: number = 3;
+  
+  // Cache for recent searches (TTL: 5 minutes)
+  private searchCache: Map<string, { result: MCPSearchResult; timestamp: number }> = new Map();
+  private cacheTTL: number = 5 * 60 * 1000; // 5 minutes
 
   async initialize(): Promise<boolean> {
     try {
       console.log('🔍 Initializing MCP web search client...');
       
-      // Test if MCP server is available
-      const testResult = await this.performSearch('test query');
-      this.isConnected = testResult.success;
+      // Try to establish persistent connection
+      this.isConnected = await this.establishPersistentConnection();
       
       if (this.isConnected) {
-        console.log('✅ MCP web search client connected successfully');
+        console.log('✅ MCP web search client connected successfully (persistent mode)');
       } else {
         console.log('⚠️ MCP web search client not available, will fallback to direct search');
       }
@@ -31,27 +36,98 @@ export class MCPClient {
       return false;
     }
   }
+  
+  private async establishPersistentConnection(): Promise<boolean> {
+    // For now, test with a simple query to check availability
+    // In production, this would maintain a persistent process
+    const testResult = await this.performSearch('test query', 1);
+    return testResult.success;
+  }
 
   async performSearch(query: string, maxResults: number = 5): Promise<MCPSearchResult> {
     if (!query || query.trim().length === 0) {
       return { success: false, error: 'Empty query provided' };
     }
 
+    // Check cache first
+    const cacheKey = `${query.toLowerCase().trim()}_${maxResults}`;
+    const cached = this.searchCache.get(cacheKey);
+    
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      console.log(`📦 Cache hit for query: "${query}"`);
+      return cached.result;
+    }
+
     try {
+      let result: MCPSearchResult;
+      
       // Try MCP server first if available
-      const mcpResult = await this.mcpSearch(query, maxResults);
+      const mcpResult = await this.mcpSearchWithRetry(query, maxResults);
       if (mcpResult.success) {
-        return mcpResult;
+        result = mcpResult;
+      } else {
+        // Fallback to direct DuckDuckGo API
+        console.log('🔄 MCP server unavailable, using direct DuckDuckGo search...');
+        result = await this.fallbackSearchWithRetry(query, maxResults);
       }
       
-      // Fallback to direct DuckDuckGo API
-      console.log('🔄 MCP server unavailable, using direct DuckDuckGo search...');
-      return await this.fallbackSearch(query, maxResults);
+      // Cache successful results
+      if (result.success && result.results) {
+        this.searchCache.set(cacheKey, { result, timestamp: Date.now() });
+        
+        // Clean old cache entries
+        this.cleanCache();
+      }
+      
+      return result;
       
     } catch (error: any) {
       console.error('Search failed:', error.message);
       return { success: false, error: error.message };
     }
+  }
+  
+  private cleanCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.searchCache.entries()) {
+      if (now - value.timestamp > this.cacheTTL) {
+        this.searchCache.delete(key);
+      }
+    }
+  }
+  
+  private async mcpSearchWithRetry(query: string, maxResults: number, retries: number = 2): Promise<MCPSearchResult> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const result = await this.mcpSearch(query, maxResults);
+        if (result.success) return result;
+        
+        if (attempt < retries) {
+          console.log(`🔄 Retry ${attempt + 1}/${retries} for MCP search...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        }
+      } catch (error) {
+        if (attempt === retries) throw error;
+      }
+    }
+    return { success: false, error: 'MCP search failed after retries' };
+  }
+  
+  private async fallbackSearchWithRetry(query: string, maxResults: number, retries: number = 2): Promise<MCPSearchResult> {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const result = await this.fallbackSearch(query, maxResults);
+        if (result.success) return result;
+        
+        if (attempt < retries) {
+          console.log(`🔄 Retry ${attempt + 1}/${retries} for fallback search...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        }
+      } catch (error) {
+        if (attempt === retries) throw error;
+      }
+    }
+    return { success: false, error: 'Fallback search failed after retries' };
   }
 
   private async mcpSearch(query: string, maxResults: number): Promise<MCPSearchResult> {

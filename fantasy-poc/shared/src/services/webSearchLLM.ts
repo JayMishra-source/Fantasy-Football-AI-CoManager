@@ -96,12 +96,23 @@ Make as many searches as needed to provide comprehensive, up-to-date analysis.`
     let iterationCount = 0;
     const maxIterations = 5; // Prevent infinite loops
 
-    // Look for search requests in various formats
+    // Look for search requests in various formats - Enhanced patterns for better detection
     const searchPatterns = [
+      // Original patterns
       /(?:search for|look up|check|find out about|get current info on)[\s:]+["']?([^."'\n]+?)["']?(?:\.|$)/gi,
       /I (?:need to|should|will) search (?:for )?["']?([^."'\n]+?)["']?(?:\.|$)/gi,
       /Let me search (?:for )?["']?([^."'\n]+?)["']?(?:\.|$)/gi,
-      /(?:Current|Recent|Latest) (?:status|news|updates?|info(?:rmation)?) (?:on|about|for)[\s:]+["']?([^."'\n]+?)["']?(?:\.|$)/gi
+      /(?:Current|Recent|Latest) (?:status|news|updates?|info(?:rmation)?) (?:on|about|for)[\s:]+["']?([^."'\n]+?)["']?(?:\.|$)/gi,
+      
+      // New enhanced patterns for fantasy football
+      /what (?:is|are) the (?:latest|current|recent|updated?).*?(?:on|about|for|regarding) ([^.?]+)/gi,
+      /(?:injury|weather|news|performance) (?:report|update|status|outlook) (?:for|on) ([^.?]+)/gi,
+      /how is ([^.?]+) (?:doing|performing|playing|looking)/gi,
+      /(?:get|fetch|retrieve|pull) (?:the )?(?:latest|current|recent) ([^.?]+) (?:data|info|information|stats|statistics)/gi,
+      /(?:any|what) (?:news|updates?|reports?) (?:on|about|regarding) ([^.?]+)/gi,
+      /(?:check|verify|confirm) (?:if|whether) ([^.?]+) is (?:playing|injured|active|out)/gi,
+      /(?:game|match|Game|Match) (?:conditions|weather|status|weather conditions) (?:for|in) ([^.?]+)/gi,
+      /(?:fantasy|projection|outlook) (?:impact|implications?) (?:of|for) ([^.?]+)/gi
     ];
 
     while (iterationCount < maxIterations && this.searchCount < this.maxSearches) {
