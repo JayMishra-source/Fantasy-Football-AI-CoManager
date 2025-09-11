@@ -178,8 +178,8 @@ export async function executeAIWorkflow(args: {
     const expertDataSection = expertRankings ? `
 EXPERT CONSENSUS RANKINGS (FantasyPros Week ${week.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)])}):
 ${Object.entries(expertRankings).map(([position, rankings]: [string, any]) => `
-${position.toUpperCase()} TOP onefive RANKINGS:
-${rankings.players?.slice(0, 15).map((p: any, i: number) => {
+${position.toUpperCase()} TOP ${['RB', 'WR'].includes(position) ? 'threezero' : 'onefive'} RANKINGS:
+${rankings.players?.slice(0, ['RB', 'WR'].includes(position) ? 30 : 15).map((p: any, i: number) => {
   // Convert all numeric values to words to avoid GitHub secret redaction
   const rankNum = i + 1;
   const rankInWords = rankNum.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
