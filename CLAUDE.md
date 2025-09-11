@@ -4,49 +4,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-ESPN Fantasy Football AI Manager - Automates team management for ESPN Fantasy Football private leagues using AI-driven decisions. POC phase with functional ESPN authentication and data fetching.
+ESPN Fantasy Football AI Manager - Automates team management for ESPN Fantasy Football private leagues using AI-driven decisions. The system runs via GitHub Actions automation or Claude Desktop MCP integration, providing lineup optimization, waiver analysis, and trade recommendations.
 
 ## Tech Stack
 
-**Frontend**: React 19, TypeScript 5.8, Vite 7, TanStack Query v5, Axios
-**Backend**: Node.js, Express 4, TypeScript 5.7, Puppeteer 24 (ESPN auth), node-cache
-**Architecture**: REST API with session-based auth, CORS-enabled for local development
+**Automation**: GitHub Actions, TypeScript, Node.js
+**MCP Server**: Model Context Protocol for Claude Desktop integration
+**Backend API**: Node.js, Express 4, TypeScript, Puppeteer (ESPN auth), node-cache
+**LLM Providers**: Gemini, Claude, OpenAI, Perplexity
+**Architecture**: Dual-mode system (GitHub Actions scheduled jobs + Claude Desktop interactive)
 
 ## Essential Commands
 
 ### Development
 ```bash
-# Start both frontend and backend (recommended)
-cd fantasy-engine && ./start-poc.sh
-
-# Individual services:
+# Start backend API server
 cd fantasy-engine/server && npm run dev  # Backend at http://localhost:3003
-cd fantasy-engine/client && npm run dev  # Frontend at http://localhost:5173
+
+# Build and test automation CLI
+cd fantasy-engine/automation && npm install && npm run build
+
+# Test MCP server
+cd fantasy-engine/mcp-server && npm test
 ```
 
 ### Build & Production
 ```bash
-# Backend
+# Backend API
 cd fantasy-engine/server
 npm run build    # Compiles TypeScript to dist/
 npm start        # Runs production server
 
-# Frontend  
-cd fantasy-engine/client
-npm run build    # TypeScript check + Vite build
-npm run preview  # Preview production build
+# Automation CLI
+cd fantasy-engine/automation
+npm run build    # Builds CLI for GitHub Actions
+
+# MCP Server
+cd fantasy-engine/mcp-server
+npm run build    # Builds MCP server for Claude Desktop
 ```
 
 ### Testing & Debugging
 ```bash
-# Manual testing endpoints
-cd fantasy-engine && ./test-cookies.sh  # Test ESPN cookie authentication
+# Test ESPN authentication
+cd fantasy-engine/server && npm run dev
+# Then navigate to http://localhost:3003/health
 
-# Health check
-curl http://localhost:3003/health
+# Test automation locally
+cd fantasy-engine/automation
+npm run build
+node dist/cli.js --help
 
-# Frontend linting (no backend linting configured)
-cd fantasy-engine/client && npm run lint
+# Test MCP server
+cd fantasy-engine/mcp-server
+npm test
 ```
 
 ## High-Level Architecture
@@ -106,13 +117,17 @@ Client Request → Express Route → Session Validation → ESPN API Call → Re
 - **Network errors**: Axios interceptors handle retries
 - **Validation**: Pre-flight cookie checks before ESPN requests
 
-### Component Organization
+### Project Structure
 ```
-client/src/components/
-├── LoginForm.tsx      # Dual auth mode (auto/manual)
-├── TeamRoster.tsx     # Display roster with player stats
-├── ApiTester.tsx      # Debug panel for testing endpoints
-└── ComplexMode.tsx    # Advanced features (future)
+fantasy-engine/
+├── automation/        # GitHub Actions CLI for scheduled jobs
+│   └── src/          # TypeScript source for Phase 4 intelligence
+├── mcp-server/       # Claude Desktop MCP integration
+│   └── src/tools/    # MCP tools for fantasy operations
+├── server/           # Backend API server
+│   └── src/services/ # ESPN auth and API services
+└── shared/           # Shared utilities and LLM integration
+    └── src/services/ # Common services across modules
 ```
 
 ## Critical Implementation Notes
@@ -157,12 +172,24 @@ brew install chromium
 # Or let Puppeteer download Chromium automatically
 ```
 
-## Next Development Phase
+## Key Features
 
-Priority tasks for production readiness:
-1. Add PostgreSQL/Redis for session persistence
-2. Implement queue system for ESPN API rate limiting
-3. Add comprehensive error recovery and retry logic
-4. Create lineup optimization algorithm
-5. Build waiver wire automation
-6. Integrate LLM for trade recommendations
+### GitHub Actions Automation
+- **Scheduled runs**: Daily analysis, game-day monitoring, waiver analysis
+- **Phase 4 Intelligence**: Advanced AI-driven decision making
+- **Multi-league support**: Manages multiple ESPN leagues
+- **Discord notifications**: Real-time updates via webhooks
+
+### MCP Server Integration
+- **Claude Desktop**: Interactive fantasy assistant
+- **Real-time analysis**: On-demand roster evaluation
+- **Trade recommendations**: AI-powered trade analysis
+- **Waiver suggestions**: Identifies breakout players
+
+## Development Guidelines
+
+1. **Always test ESPN authentication** before making API changes
+2. **Respect rate limits** - ESPN has undocumented rate limiting
+3. **Use existing LLM providers** in `shared/src/services/llm/`
+4. **Follow TypeScript patterns** - strict typing throughout
+5. **Test locally first** before pushing GitHub Actions changes
