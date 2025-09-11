@@ -17,22 +17,22 @@ ESPN Fantasy Football AI Manager - Automates team management for ESPN Fantasy Fo
 ### Development
 ```bash
 # Start both frontend and backend (recommended)
-cd fantasy-poc && ./start-poc.sh
+cd fantasy-engine && ./start-poc.sh
 
 # Individual services:
-cd fantasy-poc/server && npm run dev  # Backend at http://localhost:3003
-cd fantasy-poc/client && npm run dev  # Frontend at http://localhost:5173
+cd fantasy-engine/server && npm run dev  # Backend at http://localhost:3003
+cd fantasy-engine/client && npm run dev  # Frontend at http://localhost:5173
 ```
 
 ### Build & Production
 ```bash
 # Backend
-cd fantasy-poc/server
+cd fantasy-engine/server
 npm run build    # Compiles TypeScript to dist/
 npm start        # Runs production server
 
 # Frontend  
-cd fantasy-poc/client
+cd fantasy-engine/client
 npm run build    # TypeScript check + Vite build
 npm run preview  # Preview production build
 ```
@@ -40,13 +40,13 @@ npm run preview  # Preview production build
 ### Testing & Debugging
 ```bash
 # Manual testing endpoints
-cd fantasy-poc && ./test-cookies.sh  # Test ESPN cookie authentication
+cd fantasy-engine && ./test-cookies.sh  # Test ESPN cookie authentication
 
 # Health check
 curl http://localhost:3003/health
 
 # Frontend linting (no backend linting configured)
-cd fantasy-poc/client && npm run lint
+cd fantasy-engine/client && npm run lint
 ```
 
 ## High-Level Architecture

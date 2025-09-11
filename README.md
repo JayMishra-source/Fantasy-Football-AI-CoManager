@@ -68,7 +68,7 @@ Best for: Developers who want to test ESPN API integration
 1. **Clone repository**:
    ```bash
    git clone https://github.com/yourusername/FantasyCoManager.git
-   cd FantasyCoManager/fantasy-poc/mcp-server
+   cd FantasyCoManager/fantasy-engine/mcp-server
    ```
 
 2. **Build MCP server**:
@@ -83,8 +83,8 @@ Best for: Developers who want to test ESPN API integration
      "mcpServers": {
        "fantasy-football": {
          "command": "node",
-         "args": ["/path/to/fantasy-poc/mcp-server/dist/index.js"],
-         "cwd": "/path/to/fantasy-poc/mcp-server"
+         "args": ["/path/to/fantasy-engine/mcp-server/dist/index.js"],
+         "cwd": "/path/to/fantasy-engine/mcp-server"
        }
      }
    }
@@ -100,7 +100,7 @@ Best for: Developers who want to test ESPN API integration
 ```bash
 # Clone and navigate
 git clone https://github.com/yourusername/FantasyCoManager.git
-cd FantasyCoManager/fantasy-poc
+cd FantasyCoManager/fantasy-engine
 
 # Quick start (both frontend and backend)
 ./start-poc.sh
@@ -189,25 +189,25 @@ Access http://localhost:5173 to:
 
 ### Key Features by Component
 
-**GitHub Actions Automation** (`fantasy-poc/automation/`)
+**GitHub Actions Automation** (`fantasy-engine/automation/`)
 - Phase 4 Advanced Intelligence System
 - Scheduled and manual workflows
 - Discord webhook notifications
 - Multi-league support
 
-**MCP Server** (`fantasy-poc/mcp-server/`)
+**MCP Server** (`fantasy-engine/mcp-server/`)
 - 10+ MCP tools for ESPN data access
 - Lineup optimization algorithms
 - Trade and waiver analysis
 - Direct Claude Desktop integration
 
-**Web POC** (`fantasy-poc/client/` + `fantasy-poc/server/`)
+**Web POC** (`fantasy-engine/client/` + `fantasy-engine/server/`)
 - React 19 + TypeScript frontend
 - Express + Puppeteer backend
 - ESPN authentication handling
 - API testing interface
 
-**Shared Library** (`fantasy-poc/shared/`)
+**Shared Library** (`fantasy-engine/shared/`)
 - ESPN API client with 2025 season support
 - Roster slot categorization (26 position types)
 - Projection normalization (weekly vs season)
@@ -258,7 +258,7 @@ curl -H "Cookie: espn_s2=YOUR_COOKIE; SWID=YOUR_SWID" \
   "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/2025/segments/0/leagues/YOUR_LEAGUE_ID"
 
 # Check MCP server
-node fantasy-poc/mcp-server/dist/index.js
+node fantasy-engine/mcp-server/dist/index.js
 
 # View GitHub Actions logs
 # Go to Actions tab → Select workflow → View logs

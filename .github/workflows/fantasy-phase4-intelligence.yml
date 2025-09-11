@@ -67,17 +67,17 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'fantasy-poc/automation/package-lock.json'
+          cache-dependency-path: 'fantasy-engine/automation/package-lock.json'
 
       - name: Install Dependencies
-        working-directory: fantasy-poc/automation
+        working-directory: fantasy-engine/automation
         run: |
           npm ci
           npm run build
 
       - name: Intelligence Preflight Check
         id: check
-        working-directory: fantasy-poc/automation
+        working-directory: fantasy-engine/automation
         env:
           ESPN_S2: ${{ secrets.ESPN_S2 }}
           ESPN_SWID: ${{ secrets.ESPN_SWID }}
@@ -167,16 +167,16 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: 'fantasy-poc/automation/package-lock.json'
+          cache-dependency-path: 'fantasy-engine/automation/package-lock.json'
 
       - name: Install Dependencies
-        working-directory: fantasy-poc/automation
+        working-directory: fantasy-engine/automation
         run: |
           npm ci
           npm run build
 
       - name: Load Historical Intelligence Data
-        working-directory: fantasy-poc/automation
+        working-directory: fantasy-engine/automation
         run: |
           echo "📊 Loading historical intelligence data..."
           # In production, this would restore from persistent storage
@@ -187,7 +187,7 @@ jobs:
 
       - name: Execute Phase 4 Intelligence
         id: intelligence
-        working-directory: fantasy-poc/automation
+        working-directory: fantasy-engine/automation
         timeout-minutes: 20
         env:
           # ESPN Authentication
@@ -282,7 +282,7 @@ jobs:
           echo "✅ Phase 4 Intelligence execution complete"
 
       - name: Validate Intelligence Results
-        working-directory: fantasy-poc/automation
+        working-directory: fantasy-engine/automation
         run: |
           echo "🔍 Validating intelligence results..."
           
@@ -323,19 +323,19 @@ jobs:
         with:
           name: phase4-intelligence-results-${{ matrix.mode }}-${{ github.run_number }}
           path: |
-            fantasy-poc/automation/phase4_results.json
-            fantasy-poc/automation/urgent_decisions.json
-            fantasy-poc/automation/learning_patterns.json
-            fantasy-poc/automation/seasonal_intelligence.json
-            fantasy-poc/automation/analytics_dashboard.json
-            fantasy-poc/automation/analytics_dashboard_*.html
-            fantasy-poc/automation/system-metrics.json
-            fantasy-poc/automation/health-report.txt
+            fantasy-engine/automation/phase4_results.json
+            fantasy-engine/automation/urgent_decisions.json
+            fantasy-engine/automation/learning_patterns.json
+            fantasy-engine/automation/seasonal_intelligence.json
+            fantasy-engine/automation/analytics_dashboard.json
+            fantasy-engine/automation/analytics_dashboard_*.html
+            fantasy-engine/automation/system-metrics.json
+            fantasy-engine/automation/health-report.txt
           retention-days: 30
 
       - name: Store Intelligence Data
         if: matrix.primary == true
-        working-directory: fantasy-poc/automation
+        working-directory: fantasy-engine/automation
         run: |
           echo "💾 Storing intelligence data for future analysis..."
           
@@ -409,8 +409,8 @@ jobs:
           RESULTS_FILE=""
           if [[ -f "results/phase4_results.json" ]]; then
             RESULTS_FILE="results/phase4_results.json"
-          elif [[ -f "fantasy-poc/automation/phase4_results.json" ]]; then
-            RESULTS_FILE="fantasy-poc/automation/phase4_results.json"
+          elif [[ -f "fantasy-engine/automation/phase4_results.json" ]]; then
+            RESULTS_FILE="fantasy-engine/automation/phase4_results.json"
           fi
           
           if [[ -n "$RESULTS_FILE" ]]; then
