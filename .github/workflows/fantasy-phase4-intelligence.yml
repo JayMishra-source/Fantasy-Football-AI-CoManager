@@ -8,11 +8,11 @@ on:
   schedule:
     # Season-Aware Daily Analysis - 8 AM Eastern, NFL season only (Sep-Jan)
     # Runs during months 9-12 and 1 (September through January)
-    - cron: '0 12 * 9-12,1 *'
+    - cron: '0 13 * 9-12,1 *'
     
     # Game Day Monitoring - Every 4 hours on game days (Sun/Mon/Thu) during NFL season
-    # Covers pre-game through post-game with reduced frequency
-    - cron: '0 */4 * 9-12,1 0,1,4'
+    # Runs at 12AM, 4AM, 8AM, 12PM, 4PM, 8PM UTC (avoiding 1 PM UTC daily run)
+    - cron: '0 0,4,8,12,16,20 * 9-12,1 0,1,4'
     
     # Weekly Waiver Analysis - Tuesday 10 AM Eastern during NFL season
     # Essential for waiver wire decisions
