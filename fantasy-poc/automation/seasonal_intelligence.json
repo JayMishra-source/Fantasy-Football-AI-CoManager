@@ -1,0 +1,126 @@
+{
+  "current_season": 2025,
+  "historical_data": [],
+  "player_development": [],
+  "league_evolution": [],
+  "seasonal_strategies": {
+    "early": {
+      "phase": "early",
+      "week_range": [
+        1,
+        4
+      ],
+      "primary_focus": [
+        "roster_building",
+        "breakout_identification",
+        "volume_opportunity"
+      ],
+      "risk_tolerance": "aggressive",
+      "decision_weights": {
+        "long_term_value": 0.4,
+        "immediate_points": 0.2,
+        "playoff_preparation": 0.1,
+        "matchup_optimization": 0.3
+      },
+      "key_tactics": [
+        "target_volume_players",
+        "identify_breakouts",
+        "exploit_overreactions"
+      ],
+      "success_metrics": [
+        "roster_improvement",
+        "breakout_accuracy",
+        "waiver_success"
+      ]
+    },
+    "mid": {
+      "phase": "mid",
+      "week_range": [
+        5,
+        10
+      ],
+      "primary_focus": [
+        "consistency_building",
+        "playoff_positioning",
+        "trade_optimization"
+      ],
+      "risk_tolerance": "balanced",
+      "decision_weights": {
+        "long_term_value": 0.3,
+        "immediate_points": 0.3,
+        "playoff_preparation": 0.2,
+        "matchup_optimization": 0.2
+      },
+      "key_tactics": [
+        "prioritize_floor",
+        "strategic_trades",
+        "handcuff_management"
+      ],
+      "success_metrics": [
+        "win_rate",
+        "playoff_odds",
+        "roster_stability"
+      ]
+    },
+    "late": {
+      "phase": "late",
+      "week_range": [
+        11,
+        14
+      ],
+      "primary_focus": [
+        "playoff_preparation",
+        "schedule_optimization",
+        "ceiling_maximization"
+      ],
+      "risk_tolerance": "conservative",
+      "decision_weights": {
+        "long_term_value": 0.1,
+        "immediate_points": 0.3,
+        "playoff_preparation": 0.4,
+        "matchup_optimization": 0.2
+      },
+      "key_tactics": [
+        "secure_playoffs",
+        "schedule_analysis",
+        "ceiling_plays"
+      ],
+      "success_metrics": [
+        "playoff_probability",
+        "schedule_strength",
+        "upside_accumulation"
+      ]
+    },
+    "playoff": {
+      "phase": "playoff",
+      "week_range": [
+        15,
+        18
+      ],
+      "primary_focus": [
+        "matchup_exploitation",
+        "ceiling_maximization",
+        "championship_focus"
+      ],
+      "risk_tolerance": "aggressive",
+      "decision_weights": {
+        "long_term_value": 0,
+        "immediate_points": 0.5,
+        "playoff_preparation": 0,
+        "matchup_optimization": 0.5
+      },
+      "key_tactics": [
+        "ceiling_priority",
+        "matchup_streaming",
+        "championship_mentality"
+      ],
+      "success_metrics": [
+        "weekly_performance",
+        "championship_probability",
+        "ceiling_achievement"
+      ]
+    }
+  },
+  "cross_season_patterns": [],
+  "predictive_models": []
+}
