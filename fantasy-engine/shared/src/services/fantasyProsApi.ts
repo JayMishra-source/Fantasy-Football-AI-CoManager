@@ -196,25 +196,55 @@ export class FantasyProsApiService {
       throw new Error('ecrData variable not found');
     }
 
+    console.log(`🔍 Found ecrData variable, parsing JSON...`);
     const ecrData = JSON.parse(ecrDataMatch[1]);
     const playersData = ecrData.players || [];
     
+    console.log(`📊 Raw ecrData contains ${playersData.length} players`);
+    
+    // Log first player for debugging
+    if (playersData.length > 0) {
+      const firstPlayer = playersData[0];
+      console.log(`🧪 Sample raw player data:`, {
+        player_name: firstPlayer.player_name,
+        player_team_id: firstPlayer.player_team_id, 
+        player_position_id: firstPlayer.player_position_id,
+        rank_ecr: firstPlayer.rank_ecr,
+        rank_ave: firstPlayer.rank_ave,
+        rank_min: firstPlayer.rank_min,
+        rank_max: firstPlayer.rank_max,
+        rank_std: firstPlayer.rank_std,
+        tier: firstPlayer.tier
+      });
+    }
+    
     const players: FantasyProsPlayer[] = playersData
       .filter((p: any) => !position || position === 'ALL' || p.player_position_id === position)
-      .map((p: any) => ({
-        player: {
-          name: p.player_name,
-          team: p.player_team_id,
-          position: p.player_position_id
-        },
-        adp: parseFloat(p.rank_ave) || p.rank_ecr,
-        expertConsensus: p.rank_ecr,
-        tier: p.tier || Math.ceil(p.rank_ecr / 12),
-        bestRank: parseInt(p.rank_min) || p.rank_ecr,
-        worstRank: parseInt(p.rank_max) || p.rank_ecr,
-        avgRank: parseFloat(p.rank_ave) || p.rank_ecr,
-        stdDev: parseFloat(p.rank_std) || 0
-      }));
+      .map((p: any, index: number) => {
+        const extractedPlayer = {
+          player: {
+            name: p.player_name || `Unknown Player ${index + 1}`,
+            team: p.player_team_id || 'FA',
+            position: p.player_position_id || position || 'UNKNOWN'
+          },
+          adp: parseFloat(p.rank_ave) || p.rank_ecr || (index + 1),
+          expertConsensus: p.rank_ecr || (index + 1), // Ensure never undefined
+          tier: p.tier || Math.ceil((p.rank_ecr || index + 1) / 12),
+          bestRank: parseInt(p.rank_min) || p.rank_ecr || (index + 1),
+          worstRank: parseInt(p.rank_max) || p.rank_ecr || (index + 1),
+          avgRank: parseFloat(p.rank_ave) || p.rank_ecr || (index + 1),
+          stdDev: parseFloat(p.rank_std) || 0
+        };
+        
+        // Log first few extracted players for debugging
+        if (index < 3) {
+          console.log(`✅ Extracted player ${index + 1}:`, extractedPlayer);
+        }
+        
+        return extractedPlayer;
+      });
+    
+    console.log(`🎯 Extracted ${players.length} ${position} players for ${format}`);
     
     return {
       lastUpdated: new Date(),
@@ -279,45 +309,65 @@ export class FantasyProsApiService {
    * Strategy 3: Extract from HTML ranking table (existing logic)
    */
   private extractFromRankingTable(html: string, position: string, format: string): FantasyProsRankings {
+    console.log(`🔍 Attempting HTML table extraction for ${position} ${format}`);
     const $ = cheerio.load(html);
     const players: FantasyProsPlayer[] = [];
     
     const tableSelectors = ['#ranking-table tbody tr', '.rankings-table tbody tr', 'table tbody tr'];
     
     for (const selector of tableSelectors) {
-      if ($(selector).length > 0) {
+      const rowCount = $(selector).length;
+      if (rowCount > 0) {
+        console.log(`📊 Found ${rowCount} rows with selector: ${selector}`);
+        
         $(selector).each((index, element) => {
           const $row = $(element);
-          const rank = parseInt($row.find('.rank, td:first').text()) || index + 1;
+          const rankText = $row.find('.rank, td:first').text().trim();
+          const rank = parseInt(rankText) || index + 1;
           
           const playerName = $row.find('.player-label a, .player-name, a[href*="/players/"]').first().text().trim();
           const teamPos = $row.find('.player-label small, .team-position').text().trim();
           
-          if (playerName) {
+          // Log first few rows for debugging
+          if (index < 3) {
+            console.log(`🧪 Row ${index + 1}: rank="${rankText}" -> ${rank}, name="${playerName}", teamPos="${teamPos}"`);
+          }
+          
+          if (playerName && playerName.length > 1) {
             const [team, pos] = teamPos.split(/[\s-]+/);
             
-            players.push({
+            const extractedPlayer = {
               player: {
                 name: playerName,
                 team: team || 'FA',
                 position: pos || position || 'Unknown'
               },
               adp: rank,
-              expertConsensus: rank,
+              expertConsensus: rank, // HTML fallback: ensure never undefined  
               tier: Math.ceil(rank / 12),
               bestRank: rank,
               worstRank: rank,
               avgRank: rank,
               stdDev: 0
-            });
+            };
+            
+            if (index < 3) {
+              console.log(`✅ HTML extracted player ${index + 1}:`, extractedPlayer);
+            }
+            
+            players.push(extractedPlayer);
           }
         });
         
-        if (players.length > 0) break;
+        if (players.length > 0) {
+          console.log(`🎯 HTML table extraction successful: ${players.length} players`);
+          break;
+        }
       }
     }
 
     if (players.length === 0) {
+      console.log(`❌ HTML table extraction failed: no players found`);
       throw new Error('No ranking table data found');
     }
 
@@ -571,31 +621,48 @@ export class FantasyProsApiService {
 
       // Convert ESPN data to FantasyProsRankings format
       const espnPlayers = response.data.players;
-      const players: FantasyProsPlayer[] = espnPlayers
-        .filter((p: any) => p?.player?.stats?.[0]?.appliedTotal !== undefined)
+      console.log(`📊 Raw ESPN data contains ${espnPlayers.length} players`);
+      
+      const filteredPlayers = espnPlayers.filter((p: any) => p?.player?.stats?.[0]?.appliedTotal !== undefined);
+      console.log(`🎯 Filtered to ${filteredPlayers.length} players with stats`);
+      
+      const players: FantasyProsPlayer[] = filteredPlayers
         .map((p: any, index: number) => {
           const player = p.player;
           const stats = player.stats?.[0] || {};
           const projectedPoints = stats.appliedTotal || 0;
           
-          return {
+          const extractedPlayer = {
             player: {
               name: player.fullName || 'Unknown Player',
               team: this.getESPNTeamAbbrev(player.proTeamId) || 'FA',
               position: this.getESPNPositionName(player.defaultPositionId) || 'UNKNOWN'
             },
-            adp: index + 1, // Use rank as ADP approximation
-            expertConsensus: index + 1, // Use rank as consensus
+            adp: index + 1, // Use rank as ADP approximation  
+            expertConsensus: index + 1, // ESPN fallback: ensure never undefined
             tier: Math.ceil((index + 1) / 12), // 12-player tiers
             bestRank: index + 1,
             worstRank: index + 1, 
             avgRank: index + 1,
             stdDev: 0 // ESPN doesn't provide ranking variance
           };
+          
+          // Log first few players for debugging
+          if (index < 3) {
+            console.log(`✅ ESPN extracted player ${index + 1}:`, extractedPlayer);
+            console.log(`   Raw ESPN data:`, {
+              fullName: player.fullName,
+              proTeamId: player.proTeamId,
+              defaultPositionId: player.defaultPositionId,
+              projectedPoints
+            });
+          }
+          
+          return extractedPlayer;
         })
         .slice(0, 200); // Limit to top 200 players
 
-      console.log(`✅ ESPN fallback: Found ${players.length} players for ${position} ${format}`);
+      console.log(`✅ ESPN fallback: Generated ${players.length} players for ${position} ${format}`);
 
       return {
         lastUpdated: new Date(),

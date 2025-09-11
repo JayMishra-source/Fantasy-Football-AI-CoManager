@@ -184,17 +184,19 @@ ${rankings.players?.slice(0, 15).map((p: any, i: number) => {
   const rankNum = i + 1;
   const rankInWords = rankNum.toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
   
-  const expertRankInWords = (p.rank || 'N/A').toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+  const expertRankInWords = (p.expertConsensus || 'N/A').toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
   
   const tierInWords = (p.tier || 'N/A').toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
   
-  const consensusInWords = (p.expertConsensus || 'N/A').toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
+  // Calculate consensus confidence based on ranking variance (lower stdDev = higher confidence)
+  const confidenceScore = p.stdDev ? Math.max(100 - (p.stdDev * 10), 50) : 75;
+  const confidenceInWords = Math.round(confidenceScore).toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
   
   const bestRankInWords = (p.bestRank || 'N/A').toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
   
   const worstRankInWords = (p.worstRank || 'N/A').toString().replace(/\d/g, (d: string) => ['zero','one','two','three','four','five','six','seven','eight','nine'][parseInt(d)]);
   
-  return `${rankInWords}. ${p.player.name} (${p.player.team}) - Expert Rank: ${expertRankInWords} | Tier: ${tierInWords} | Consensus: ${consensusInWords}% | Range: ${bestRankInWords}-${worstRankInWords}`;
+  return `${rankInWords}. ${p.player.name} (${p.player.team}) - Expert Rank: ${expertRankInWords} | Tier: ${tierInWords} | Confidence: ${confidenceInWords}% | Range: ${bestRankInWords}-${worstRankInWords}`;
 }).join('\n') || 'No rankings available'}
 
 `).join('\n')}
