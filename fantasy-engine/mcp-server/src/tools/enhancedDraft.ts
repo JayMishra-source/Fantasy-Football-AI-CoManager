@@ -97,7 +97,7 @@ export async function getFantasyProsRankings(args: {
       lastUpdated: rankings.lastUpdated,
       totalPlayers: rankings.players.length,
       topPlayers: rankings.players.slice(0, 50).map(player => ({
-        rank: player.rank,
+        rank: player.expertConsensus,
         name: player.player.name,
         team: player.player.team,
         position: player.player.position,
@@ -137,7 +137,7 @@ export async function getPlayerTiers(args: {
       players: players.map(player => ({
         name: player.player.name,
         team: player.player.team,
-        rank: player.rank,
+        rank: player.expertConsensus,
         adp: player.adp,
         variance: player.stdDev
       }))
@@ -210,7 +210,7 @@ export async function comparePlayerValue(args: {
         name: player.player.name,
         team: player.player.team,
         position: player.player.position,
-        fpRank: player.rank,
+        fpRank: player.expertConsensus,
         tier: player.tier,
         adp: adp,
         variance: player.stdDev

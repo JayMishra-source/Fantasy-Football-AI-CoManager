@@ -183,7 +183,7 @@ export class EnhancedDraftApiService {
         position: espnPlayer.position,
         team: espnPlayer.team,
         projectedPoints: espnPlayer.projectedPoints,
-        fpRank: fpPlayer?.rank,
+        fpRank: fpPlayer?.expertConsensus,
         fpADP: fpPlayer?.adp || fpPlayer?.expertConsensus,
         fpTier: fpPlayer?.tier,
         expertConsensus: fpPlayer?.expertConsensus,
