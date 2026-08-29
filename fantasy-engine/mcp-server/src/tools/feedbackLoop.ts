@@ -298,7 +298,7 @@ export async function runABTest(args: {
             name: 'AI-Powered',
             description: 'LLM-based approach',
             useLLM: true,
-            llmModel: 'gemini-1.5-flash',
+            llmModel: 'gemini-3.5-flash-lite',
             parameters: {}
           }
         },

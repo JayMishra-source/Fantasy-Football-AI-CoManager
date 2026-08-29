@@ -5,6 +5,14 @@ interface ESPNCookies {
   swid: string;
 }
 
+// The NFL season is named for the year it starts in (Sep-Jan); Jan/Feb still
+// belong to the previous season's playoffs/offseason. A hardcoded year here
+// kept silently breaking every year when nobody remembered to bump it.
+export function getCurrentNFLSeasonYear(): number {
+  const now = new Date();
+  return now.getMonth() <= 1 ? now.getFullYear() - 1 : now.getFullYear();
+}
+
 export class ESPNApiService {
   private axios: AxiosInstance;
   private baseURL = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
@@ -38,7 +46,7 @@ export class ESPNApiService {
     return this.cookies;
   }
 
-  async getLeagueInfo(leagueId: string, year: number = 2025) {
+  async getLeagueInfo(leagueId: string, year: number = getCurrentNFLSeasonYear()) {
     const fullUrl = `${this.baseURL}/seasons/${year}/segments/0/leagues/${leagueId}`;
     console.log('Fetching URL:', fullUrl);
     
@@ -74,7 +82,7 @@ export class ESPNApiService {
     return response.data;
   }
 
-  async getTeams(leagueId: string, year: number = 2025) {
+  async getTeams(leagueId: string, year: number = getCurrentNFLSeasonYear()) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { params: { view: 'mTeam' } }
@@ -82,7 +90,7 @@ export class ESPNApiService {
     return response.data;
   }
 
-  async getRoster(leagueId: string, teamId: string, year: number = 2025) {
+  async getRoster(leagueId: string, teamId: string, year: number = getCurrentNFLSeasonYear()) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { 
@@ -97,7 +105,7 @@ export class ESPNApiService {
     return team?.roster || null;
   }
 
-  async getPlayers(leagueId: string, year: number = 2025) {
+  async getPlayers(leagueId: string, year: number = getCurrentNFLSeasonYear()) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { 
@@ -109,7 +117,7 @@ export class ESPNApiService {
     return response.data.players;
   }
 
-  async getMatchups(leagueId: string, week: number, year: number = 2025) {
+  async getMatchups(leagueId: string, week: number, year: number = getCurrentNFLSeasonYear()) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}`,
       { 
@@ -122,7 +130,7 @@ export class ESPNApiService {
     return response.data.schedule;
   }
 
-  async getTransactions(leagueId: string, year: number = 2025) {
+  async getTransactions(leagueId: string, year: number = getCurrentNFLSeasonYear()) {
     const response = await this.axios.get(
       `/seasons/${year}/segments/0/leagues/${leagueId}/transactions`
     );

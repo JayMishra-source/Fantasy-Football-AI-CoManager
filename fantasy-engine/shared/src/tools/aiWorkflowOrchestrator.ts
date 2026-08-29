@@ -169,7 +169,13 @@ export async function executeAIWorkflow(args: {
           };
         } catch (error: any) {
           console.error(`❌ ESPN API FAILED for ${league.name || league.leagueId}:`, error.message);
-          throw new Error(`ESPN API authentication failed for league ${league.leagueId}: ${error.message}`);
+          // An empty roster is expected before the league has drafted - not an
+          // auth problem, so don't relabel it as one. Anything else is more
+          // likely a real cookie/credential issue.
+          if (error.message?.includes('Empty roster returned')) {
+            throw new Error(`${error.message} (this is expected if the league hasn't drafted yet - if the draft has happened, check ESPN_S2/SWID cookies and the league/team IDs)`);
+          }
+          throw new Error(`ESPN API request failed for league ${league.leagueId}: ${error.message}`);
         }
       })
     );
@@ -579,9 +585,10 @@ async function generateMockAnalysis(prompt: string, leagueData: any[]): Promise<
         recommendations.push(`Target ${anotherStarter.fullName} for increased workload this week`);
       }
     } else {
-      // This should NOT happen if ESPN API is working correctly
-      console.error(`⚠️ Empty roster data for ${league.leagueName} - ESPN API authentication issue`);
-      throw new Error(`Empty roster returned for ${league.leagueName} - check ESPN_S2/SWID cookies and league/team IDs`);
+      // Expected if the league hasn't drafted yet; otherwise likely a cookie
+      // or league/team ID problem.
+      console.error(`⚠️ Empty roster data for ${league.leagueName}`);
+      throw new Error(`Empty roster returned for ${league.leagueName} (expected if the league hasn't drafted yet - if the draft has happened, check ESPN_S2/SWID cookies and the league/team IDs)`);
     }
   });
   

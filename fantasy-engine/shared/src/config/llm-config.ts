@@ -18,7 +18,7 @@ export class LLMConfigManager {
     if (primaryProvider === 'gemini' && geminiKey) {
       return {
         provider: 'gemini',
-        model: 'gemini-2.0-flash-exp',
+        model: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
         api_key: geminiKey,
         max_tokens: 1000,
         temperature: 0.7
@@ -53,7 +53,7 @@ export class LLMConfigManager {
     if (geminiKey) {
       return {
         provider: 'gemini',
-        model: 'gemini-2.0-flash-exp',
+        model: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
         api_key: geminiKey,
         max_tokens: 1000,
         temperature: 0.7
@@ -210,7 +210,7 @@ export class LLMConfigManager {
       switch (provider) {
         case 'gemini':
           config.api_key = process.env.GEMINI_API_KEY || '';
-          config.model = 'gemini-2.0-flash-exp';
+          config.model = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
           break;
         case 'claude':
           config.api_key = process.env.CLAUDE_API_KEY || '';

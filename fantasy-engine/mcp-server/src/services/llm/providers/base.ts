@@ -35,7 +35,11 @@ export abstract class BaseLLMProvider implements LLMProvider {
         { role: 'user', content: 'Hello, this is a test. Please respond with just "OK".' }
       ];
       
-      const response = await this.chat(testMessages, { max_tokens: 10 });
+      // Thinking-enabled models (e.g. Gemini 3.x) spend part of this budget on
+      // internal reasoning tokens before any visible text, even at the lowest
+      // thinking setting, so this needs real headroom above a token or two of
+      // actual answer.
+      const response = await this.chat(testMessages, { max_tokens: 500 });
       return response.content.toLowerCase().includes('ok');
     } catch (error) {
       console.error(`${this.name} config validation failed:`, error);

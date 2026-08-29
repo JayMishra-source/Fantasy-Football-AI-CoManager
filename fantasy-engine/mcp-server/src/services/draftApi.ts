@@ -4,7 +4,12 @@ import axios from 'axios';
 
 export class DraftApiService {
   private baseUrl = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
-  private year = 2024;
+  // The NFL season is named for the year it starts in (Sep-Jan); Jan/Feb
+  // still belong to the previous season's playoffs/offseason.
+  private year = (() => {
+    const now = new Date();
+    return now.getMonth() <= 1 ? now.getFullYear() - 1 : now.getFullYear();
+  })();
 
   private getHeaders() {
     const cookies = espnApi.getCookies();

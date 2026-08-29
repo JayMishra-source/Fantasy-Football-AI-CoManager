@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
+import { getCurrentNFLSeasonYear } from '../services/espnApi';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.post('/test-cookies', async (req: Request, res: Response) => {
     console.log('SWID:', cleanSwid);
 
     // Test with a simple ESPN API call using the new API base URL (changed in April 2024)
-    const year = 2024;
+    const year = getCurrentNFLSeasonYear();
     const url = `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${leagueId}`;
     
     console.log('Testing URL:', url);
@@ -104,7 +105,7 @@ router.post('/test-public-league', async (req: Request, res: Response) => {
     console.log('Testing public league access...');
     console.log('League ID:', leagueId);
 
-    const year = 2024; // Use 2024 since 2025 season hasn't started  
+    const year = getCurrentNFLSeasonYear();
     const url = `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${leagueId}`;
     
     console.log('Testing URL:', url);

@@ -227,7 +227,7 @@ export class LLMIntegrationTester {
     const modelEnvVar = `${provider.toUpperCase()}_MODEL`;
     
     const models: { [key: string]: string } = {
-      'gemini': 'gemini-1.5-flash',
+      'gemini': 'gemini-3.7-flash',
       'claude': 'claude-3-5-sonnet-20241022',
       'openai': 'gpt-4o-mini',
       'perplexity': 'llama-3.1-sonar-large-128k-online'

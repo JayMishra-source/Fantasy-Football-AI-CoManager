@@ -126,7 +126,7 @@ export class CostMonitor {
         limit: this.limits.per_analysis_limit,
         percentage: (newEntry.cost / this.limits.per_analysis_limit) * 100,
         period: 'single analysis',
-        recommendation: `This analysis cost $${newEntry.cost.toFixed(4)}, which exceeds your per-analysis limit of $${this.limits.per_analysis_limit}. Consider switching to a cheaper model like gemini-1.5-flash.`
+        recommendation: `This analysis cost $${newEntry.cost.toFixed(4)}, which exceeds your per-analysis limit of $${this.limits.per_analysis_limit}. Consider switching to a cheaper model like gemini-3.5-flash-lite.`
       });
     }
 
@@ -233,7 +233,7 @@ export class CostMonitor {
     }
     
     message += `💡 **Cost-saving options:**\n`;
-    message += `• Switch to gemini-1.5-flash ($0.075/$0.30 per 1M tokens)\n`;
+    message += `• Switch to gemini-3.5-flash-lite ($0.30/$2.50 per 1M tokens)\n`;
     message += `• Use notification-only mode (free)\n`;
     message += `• Reduce analysis frequency\n`;
     message += `• Increase cost limits in environment variables\n\n`;
@@ -331,7 +331,7 @@ export class CostMonitor {
     return [
       {
         provider: 'gemini',
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3.5-flash-lite',
         cost_per_analysis: '$0.01-0.03',
         best_for: 'Budget-conscious users'
       },
