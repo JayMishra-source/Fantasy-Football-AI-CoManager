@@ -323,7 +323,7 @@ Mode: full | Week: 5 | Grade: A
 
 Data Sources:
 ✅ ESPN Fantasy API
-✅ gemini (gemini-2.0-flash-exp)
+✅ gemini (gemini-3.7-flash)
 ```
 
 ### If Something Goes Wrong:
@@ -450,7 +450,7 @@ Mode: full | Week: 5 | Grade: A
 Data Sources:
 ✅ ESPN Fantasy API
 ✅ FantasyPros Expert Rankings  
-✅ gemini (gemini-2.0-flash-exp)
+✅ gemini (gemini-3.7-flash)
 ```
 
 ## Security Notes

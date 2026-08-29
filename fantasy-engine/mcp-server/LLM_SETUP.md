@@ -32,7 +32,7 @@ OPENAI_TEMPERATURE=0.3
 ```bash
 # Google Gemini API
 GEMINI_API_KEY=your-api-key-here
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-3.7-flash
 
 # Optional settings
 GEMINI_MAX_TOKENS=4000
@@ -54,7 +54,7 @@ PERPLEXITY_TEMPERATURE=0.3
 
 | Provider | Model | Input | Output | Best For |
 |----------|-------|--------|--------|----------|
-| **Gemini** | gemini-1.5-flash | $0.075 | $0.30 | Budget-conscious users |
+| **Gemini** | gemini-3.5-flash-lite | $0.30 | $2.50 | Budget-conscious users |
 | **OpenAI** | gpt-4o-mini | $0.15 | $0.60 | Reliable general use |
 | **Perplexity** | sonar-large-online | $1.00 | $1.00 | Real-time data needs |
 | **Claude** | claude-3.5-sonnet | $3.00 | $15.00 | Complex analysis |
@@ -130,7 +130,7 @@ OPENAI_MODEL=gpt-4o-mini
 **For Gemini:**
 ```
 GEMINI_API_KEY=your-key-here
-GEMINI_MODEL=gemini-1.5-flash
+GEMINI_MODEL=gemini-3.7-flash
 ```
 
 **For Perplexity:**
@@ -182,7 +182,7 @@ Each analysis includes cost information:
 - Verify the model name is correct
 
 ### High costs
-- Switch to a cheaper model (gemini-1.5-flash)
+- Switch to a cheaper model (gemini-3.5-flash-lite)
 - Reduce analysis frequency
 - Check for unnecessary tool calls
 

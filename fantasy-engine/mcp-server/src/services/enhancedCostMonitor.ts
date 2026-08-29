@@ -88,10 +88,10 @@ class EnhancedCostMonitor {
       'claude-3-opus-20240229': { input: 0.015, output: 0.075 }
     },
     google: {
-      'gemini-2.0-flash-exp': { input: 0.000075, output: 0.0003 },
-      'gemini-1.5-pro': { input: 0.00125, output: 0.005 },
-      'gemini-1.5-flash': { input: 0.000075, output: 0.0003 },
-      'gemini-1.0-pro': { input: 0.0005, output: 0.0015 }
+      'gemini-3.7-flash': { input: 0.00075, output: 0.00375 },
+      'gemini-3.6-flash': { input: 0.00075, output: 0.00375 },
+      'gemini-3.5-flash-lite': { input: 0.0003, output: 0.0025 },
+      'gemini-3-pro-preview': { input: 0.0035, output: 0.0105 }
     }
   };
 

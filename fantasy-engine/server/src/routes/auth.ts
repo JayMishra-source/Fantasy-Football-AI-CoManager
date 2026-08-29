@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
 import { espnAuth } from '../services/espnAuth';
-import { espnApi } from '../services/espnApi';
+import { espnApi, getCurrentNFLSeasonYear } from '../services/espnApi';
 import { manualAuth } from '../services/manualAuth';
 // import { espnDebug } from '../services/espnDebug'; // Temporarily disabled due to TS issues
 
@@ -48,8 +48,7 @@ router.post('/public-login', async (req: Request, res: Response) => {
     }
 
     // Test if the league is actually public
-    // Use 2024 since 2025 season hasn't started yet
-    const year = 2024;
+    const year = getCurrentNFLSeasonYear();
     const testUrl = `https://fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${leagueId}`;
     
     console.log('Testing public league access:', testUrl);

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import axios from 'axios';
-import { espnApi } from '../services/espnApi';
+import { espnApi, getCurrentNFLSeasonYear } from '../services/espnApi';
 
 const router = Router();
 
@@ -26,8 +26,7 @@ router.get('/league/:leagueId', async (req: Request, res: Response) => {
       });
     }
     
-    // Use 2025 season for current fantasy football season
-    const year = 2025;
+    const year = getCurrentNFLSeasonYear();
     const url = `https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/${year}/segments/0/leagues/${leagueId}`;
     
     // Clean the cookies

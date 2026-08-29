@@ -9,16 +9,26 @@ import {
   detectLeagueSettings 
 } from '../constants/espnSlots.js';
 
+// The NFL season is named for the year it starts in (Sep-Jan). ESPN rolls
+// leagues over to the new season well before kickoff, so Jan/Feb still
+// belong to the previous season's playoffs/offseason; everything else
+// belongs to the season starting that year. This is what a hardcoded year
+// kept breaking every year when nobody remembered to bump it.
+export function getCurrentNFLSeasonYear(): number {
+  const now = new Date();
+  return now.getMonth() <= 1 ? now.getFullYear() - 1 : now.getFullYear();
+}
+
 export class ESPNApiService {
   private axios: AxiosInstance;
   private baseURL = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl';
   private cookies: ESPNCookies | null = null;
-  private year: number = 2025;
+  private year: number = getCurrentNFLSeasonYear();
 
-  // Get current NFL week for 2025 season
+  // Get current NFL week for the active season
   private getCurrentWeek(): number {
     const now = new Date();
-    const seasonStart = new Date('2025-09-04'); // NFL season typically starts first Thursday of September
+    const seasonStart = new Date(`${this.year}-09-04`); // NFL season typically starts first Thursday of September
     const timeDiff = now.getTime() - seasonStart.getTime();
     const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
     

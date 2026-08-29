@@ -56,8 +56,8 @@ export class LLMConfigManager {
       {
         provider: 'gemini',
         name: 'Google Gemini',
-        models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp', 'gemini-1.0-pro'],
-        description: 'Google\'s Gemini models - strong multimodal capabilities, Gemini 2.5 Flash is latest',
+        models: ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3-pro-preview'],
+        description: 'Google\'s Gemini models - strong multimodal capabilities, Gemini 3.7 Flash is latest',
         pricing_note: 'Pay-per-use: $0.075-10.50 per million tokens with generous free tier',
         setup_instructions: 'Get API key from https://aistudio.google.com/app/apikey',
         env_variables: ['GEMINI_API_KEY', 'GEMINI_MODEL']
@@ -124,7 +124,7 @@ export class LLMConfigManager {
     if (process.env.GEMINI_API_KEY) {
       return {
         provider: 'gemini',
-        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+        model: process.env.GEMINI_MODEL || 'gemini-3.7-flash',
         api_key: process.env.GEMINI_API_KEY,
         max_tokens: parseInt(process.env.GEMINI_MAX_TOKENS || '4000'),
         temperature: parseFloat(process.env.GEMINI_TEMPERATURE || '0.7')

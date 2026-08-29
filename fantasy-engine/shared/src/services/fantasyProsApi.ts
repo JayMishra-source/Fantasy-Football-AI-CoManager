@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import * as cheerio from 'cheerio';
+import { getCurrentNFLSeasonYear } from './espnApi.js';
 
 export interface FantasyProsPlayer {
   player: {
@@ -602,8 +603,7 @@ export class FantasyProsApiService {
       // ESPN position filter mapping
       const positionFilter = position === 'ALL' ? '' : `&pos=${this.mapPositionForESPN(position)}`;
       
-      // Current season (2025) - using same pattern as main ESPN API
-      const espnUrl = `https://fantasy.espn.com/apis/v3/games/ffl/seasons/2025/segments/0/leaguedefaults/3?view=kona_player_info&scoringPeriodId=0&filters=%7B%22players%22:%7B%22limit%22:300%7D%7D${positionFilter}`;
+      const espnUrl = `https://fantasy.espn.com/apis/v3/games/ffl/seasons/${getCurrentNFLSeasonYear()}/segments/0/leaguedefaults/3?view=kona_player_info&scoringPeriodId=0&filters=%7B%22players%22:%7B%22limit%22:300%7D%7D${positionFilter}`;
       
       console.log(`🔗 ESPN fallback URL: ${espnUrl}`);
       

@@ -105,7 +105,7 @@ export async function executeThursdayOptimization(options: ThursdayOptions): Pro
       },
       confidence: 85,
       llmUsed: true,
-      llmModel: 'gemini-2.0-flash-exp',
+      llmModel: 'gemini-3.7-flash',
       dataSourcesUsed: ['espn', 'fantasypros', 'weather', 'ai_workflow']
     });
     console.log('✅ Performance tracking recorded');

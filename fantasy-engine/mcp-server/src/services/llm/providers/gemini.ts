@@ -16,11 +16,10 @@ export class GeminiProvider extends BaseLLMProvider {
   
   get models(): string[] {
     return [
-      'gemini-2.0-flash-exp',
-      'gemini-1.5-pro', 
-      'gemini-1.5-flash',
-      'gemini-1.0-pro',
-      'gemini-pro'
+      'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3-pro-preview'
     ];
   }
   
@@ -42,7 +41,12 @@ export class GeminiProvider extends BaseLLMProvider {
         generationConfig: {
           temperature: options?.temperature || this.config.temperature || 0.7,
           maxOutputTokens: options?.max_tokens || this.config.max_tokens || 4000,
-        },
+          // Gemini 3.x models think by default and count thinking tokens against
+          // maxOutputTokens, which can exhaust the budget before any visible
+          // text is produced. Keep thinking minimal so short responses aren't
+          // silently truncated to empty content.
+          thinkingConfig: { thinkingLevel: 'low' },
+        } as any,
         safetySettings: [
           {
             category: HarmCategory.HARM_CATEGORY_HARASSMENT,
@@ -147,16 +151,15 @@ export class GeminiProvider extends BaseLLMProvider {
   }
   
   getPricing(): { input_cost_per_token: number; output_cost_per_token: number; currency: string } {
-    // Gemini pricing as of early 2025 (in USD per million tokens, converted to per token)
+    // Gemini pricing as of mid 2026 (in USD per million tokens, converted to per token)
     const pricingMap: Record<string, any> = {
-      'gemini-2.0-flash-exp': { input: 0.075, output: 0.30 }, // Same pricing as 1.5-flash during experimental phase
-      'gemini-1.5-pro': { input: 3.50, output: 10.50 },
-      'gemini-1.5-flash': { input: 0.075, output: 0.30 },
-      'gemini-1.0-pro': { input: 0.50, output: 1.50 },
-      'gemini-pro': { input: 0.50, output: 1.50 }
+      'gemini-3.7-flash': { input: 0.75, output: 3.75 },
+      'gemini-3.6-flash': { input: 0.75, output: 3.75 },
+      'gemini-3.5-flash-lite': { input: 0.30, output: 2.50 },
+      'gemini-3-pro-preview': { input: 3.50, output: 10.50 }
     };
-    
-    const pricing = pricingMap[this.config.model] || pricingMap['gemini-2.0-flash-exp'];
+
+    const pricing = pricingMap[this.config.model] || pricingMap['gemini-3.7-flash'];
     
     return {
       input_cost_per_token: pricing.input / 1000000,

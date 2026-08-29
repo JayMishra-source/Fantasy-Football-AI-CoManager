@@ -105,7 +105,7 @@ class ABTestingService {
           name: 'AI Orchestration',
           description: 'LLM-powered multi-factor optimization',
           useLLM: true,
-          llmModel: 'gemini-1.5-flash',
+          llmModel: 'gemini-3.5-flash-lite',
           parameters: {
             strategy: 'ai_workflow',
             dataSources: ['espn', 'fantasypros', 'weather', 'news']
@@ -129,10 +129,10 @@ class ABTestingService {
           parameters: {}
         },
         treatment: {
-          name: 'Gemini 1.5 Flash',
+          name: 'Gemini 3.5 Flash Lite',
           description: 'Google\'s efficient model',
           useLLM: true,
-          llmModel: 'gemini-1.5-flash',
+          llmModel: 'gemini-3.5-flash-lite',
           parameters: {}
         }
       },
