@@ -91,7 +91,7 @@ class EnhancedCostMonitor {
       'gemini-3.7-flash': { input: 0.00075, output: 0.00375 },
       'gemini-3.6-flash': { input: 0.00075, output: 0.00375 },
       'gemini-3.5-flash-lite': { input: 0.0003, output: 0.0025 },
-      'gemini-3-pro-preview': { input: 0.0035, output: 0.0105 }
+      'gemini-3.1-pro-preview': { input: 0.002, output: 0.012 }
     }
   };
 

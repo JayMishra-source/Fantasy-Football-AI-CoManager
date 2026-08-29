@@ -19,7 +19,7 @@ export class GeminiProvider extends BaseLLMProvider {
       'gemini-3.7-flash',
       'gemini-3.6-flash',
       'gemini-3.5-flash-lite',
-      'gemini-3-pro-preview'
+      'gemini-3.1-pro-preview'
     ];
   }
   
@@ -180,7 +180,7 @@ export class GeminiProvider extends BaseLLMProvider {
       'gemini-3.7-flash': { input: 0.75, output: 3.75 },
       'gemini-3.6-flash': { input: 0.75, output: 3.75 },
       'gemini-3.5-flash-lite': { input: 0.30, output: 2.50 },
-      'gemini-3-pro-preview': { input: 3.50, output: 10.50 }
+      'gemini-3.1-pro-preview': { input: 2.00, output: 12.00 }
     };
 
     const pricing = pricingMap[this.config.model] || pricingMap['gemini-3.7-flash'];

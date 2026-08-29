@@ -56,7 +56,7 @@ export class LLMConfigManager {
       {
         provider: 'gemini',
         name: 'Google Gemini',
-        models: ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3-pro-preview'],
+        models: ['gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-pro-preview'],
         description: 'Google\'s Gemini models - strong multimodal capabilities, Gemini 3.7 Flash is latest',
         pricing_note: 'Pay-per-use: $0.075-10.50 per million tokens with generous free tier',
         setup_instructions: 'Get API key from https://aistudio.google.com/app/apikey',
